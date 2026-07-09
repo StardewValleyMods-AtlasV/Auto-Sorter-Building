@@ -1,0 +1,1 @@
+- [ ] Figure out how to allow_all for putting items into the chest, without messing up the full stack automate stuff, tbf I don't even know if the automate stuff works yet, we shall see
