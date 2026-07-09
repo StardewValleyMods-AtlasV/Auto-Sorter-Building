@@ -23,7 +23,7 @@ namespace AutoSorterBuilding
         private const string EMPTY_CATEGORY_ID = $"{CP_UNIQUE_ID}_EmptyCategory";
         
         // bool so compat warning doesn't repeat every onTimeChanged and spam the log
-        private static bool AutomateCompatWarningLogged;
+        private static int AutomateCompatWarningLoggedTimeCounter = 0;
         
         private static IMonitor ModMonitor { get; set; } = null!;
         private static Harmony Harmony { get; set; } = null!;
@@ -161,12 +161,13 @@ namespace AutoSorterBuilding
             }
             catch (Exception ex)
             {
-                if (!AutomateCompatWarningLogged)
+                AutomateCompatWarningLoggedTimeCounter++;
+                if (AutomateCompatWarningLoggedTimeCounter == 20)
                 {
                     ModMonitor.Log(
                         $"AutoSorterBuilding's Automate compatibility patch failed, falling back to default Automate behavior, please report to https://www.nexusmods.com/stardewvalley/mods/36568?tab=bugs with a log (https://smapi.io/log). Details:\n{ex}",
-                        LogLevel.Error);
-                    AutomateCompatWarningLogged = true;
+                        LogLevel.Warn);
+                    AutomateCompatWarningLoggedTimeCounter = 0;
                 }
                 return true;
             }
