@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <AssemblyName>AutoSorterBuilding</AssemblyName>
+        <RootNamespace>AutoSorterBuilding</RootNamespace>
+        <Version>1.2.0</Version>
+        <TargetFramework>net6.0</TargetFramework>
+        <LangVersion>Latest</LangVersion>
+        <GamePath>/mnt/Games/SteamLibrary/steamapps/common/Stardew Valley/</GamePath>
+        <GameModsPath>$(GamePath)\ModsDebug</GameModsPath>
+        <StartArguments>--mods-path "$(GameModsPath)"</StartArguments>
+        <EnableHarmony>true</EnableHarmony>
+        <EnableModDeploy>true</EnableModDeploy>
+        <EnableModZip>true</EnableModZip>
+        <ModFolderName>AutoSorterBuilding</ModFolderName>
+        <Title>AutoSorterBuildingCore</Title>
+        <Authors>Spiderbuttons</Authors>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+        <OutputPath>bin\Debug</OutputPath>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Pathoschild.Stardew.ModBuildConfig" Version="4.*"/>
+        <ContentPacks Include="[CP] Sorting Building" Version="$(Version)" />
+    </ItemGroup>
+</Project>

@@ -1,0 +1,9 @@
+{
+    "Name": "AutoSorterBuilding",
+    "Author": "Spiderbuttons & AtlasV1224",
+    "Version": "%ProjectVersion%",
+    "Description": "The SMAPI core for Auto-Sorter Building",
+    "UniqueID": "AtlasV.AutoSorterBuildingCore",
+    "EntryDll": "AutoSorterBuilding.dll",
+    "UpdateKeys": []
+}
