@@ -1,0 +1,10 @@
+{
+  "$schema": "https://smapi.io/schemas/content-patcher.json",
+  "Changes": [
+    { 
+      "Action": "Load",
+      "Target": "Maps/{{ModId}}_AutoSorterBuilding",
+      "FromFile": "Data/{{InteriorSize}}AutoSorterBuilding.tmx",
+    },
+  ]
+}

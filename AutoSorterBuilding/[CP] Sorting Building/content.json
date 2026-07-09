@@ -1,0 +1,95 @@
+{
+  "$schema": "https://smapi.io/schemas/content-patcher.json",
+  "Format": "2.7.0",
+  "ConfigSchema": {
+    "EnableSeasonalVariants":{
+      "AllowValues": "true, false",
+      "Default": "true"
+    },
+    "Appearance": {
+      "AllowValues": "Vanilla, Blue, DarkBlue, DarkBrown, DarkRoof, Green, LightBrown, Pink, Red, WhiteRoof",
+      "Default": "Vanilla"
+    },
+    "EnableDesaturatedVersion": {
+      "AllowValues": "true,false",
+      "Default": "false"
+    },
+    "InteriorSize": {
+      "AllowValues": "Small, Medium, Large",
+      "Default": "Medium"
+    }
+  },
+  "Changes": [
+    {
+      "Action": "Include",
+      "FromFile": "Assets/AssetLoader.json"
+    },
+    {
+      "Action": "Include",
+      "FromFile": "Data/MapLoader.json"
+    },
+    { 
+      "Action": "EditData",
+      "Target": "Data/Buildings",
+      "Entries": {
+        "{{ModId}}_AutoSorterBuilding": {
+          "Name": "{{i18n: Building.Name}}",
+          "Description": "{{i18n: Building.Description}}",
+          "Texture": "{{ModId}}_AutoSorterBuilding",
+          "Builder": "Robin",
+          "BuildCost": 50000,
+          "BuildMaterials": [
+            {
+              "ItemId": 388,
+              "Amount": 500
+            },
+            {
+              "ItemId": 335,
+              "Amount": 20
+            },
+            {
+              "ItemId": 787,
+              "Amount": 10
+            }
+          ],
+          "BuildDays": 3,
+          "BuildMenuDrawOffset": "0, -96",
+          "Size": "7, 3",
+          "HumanDoor": "3, 2",
+          "AllowsFlooringUnderneath": true,
+          "DrawLayers": [],
+          "IndoorMap": "{{ModId}}_AutoSorterBuilding",
+          "IndoorMapType": "StardewValley.Shed",
+          "Chests": [
+            {
+                "id": "{{ModId}}_InputChest",
+                "Type": "Chest",
+                "Sound": "Ship",
+                "ChestFullMessage": "{{i18n: Building.InputFull}}",
+                "DisplayTile": "5, 2",
+                "DisplayHeight": 1.5,
+            }
+          ],
+          "ActionTiles": [
+            {
+              "Id": "{{ModId}}_OpenInputChest",
+              "Tile": {
+                "X": 5,
+                "Y": 2
+              },
+              "Action": "BuildingChest {{ModId}}_InputChest"
+            }
+          ],
+          "ItemConversions": [
+            {
+              "Id": "AcceptAll",
+              "RequiredTags": [],
+              "SourceChest": "{{ModId}}_InputChest",
+              "MaxDailyConversions": -1
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

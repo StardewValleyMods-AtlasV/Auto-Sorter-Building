@@ -1,0 +1,41 @@
+{
+  "$schema": "https://smapi.io/schemas/content-patcher.json",
+  "Changes": [
+    { 
+      "Action": "Load",
+      "Target": "{{ModId}}_AutoSorterBuilding",
+      "FromFile": "Assets/Saturated/{{Appearance}}/AutoSorterBuilding_{{season}}.png",
+      "When": {
+        "EnableSeasonalVariants": "true",
+        "EnableDesaturatedVersion": "false"
+      }
+    },
+    { 
+      "Action": "Load",
+      "Target": "{{ModId}}_AutoSorterBuilding",
+      "FromFile": "Assets/Saturated/{{Appearance}}/AutoSorterBuilding_summer.png",
+      "When": {
+        "EnableSeasonalVariants": "false",
+        "EnableDesaturatedVersion": "false"
+      }
+    },
+    { 
+      "Action": "Load",
+      "Target": "{{ModId}}_AutoSorterBuilding",
+      "FromFile": "Assets/Desaturated/{{Appearance}}/AutoSorterBuilding_{{season}}.png",
+      "When": {
+        "EnableSeasonalVariants": "true",
+        "EnableDesaturatedVersion": "true"
+      }
+    },
+    { 
+      "Action": "Load",
+      "Target": "{{ModId}}_AutoSorterBuilding",
+      "FromFile": "Assets/Desaturated/{{Appearance}}/AutoSorterBuilding_summer.png",
+      "When": {
+        "EnableSeasonalVariants": "false",
+        "EnableDesaturatedVersion": "true"
+      }
+    },
+  ]
+}

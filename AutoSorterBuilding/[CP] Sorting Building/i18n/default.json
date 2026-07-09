@@ -1,0 +1,37 @@
+{
+    // AssetLoader.json
+
+        // Seasonal Variants
+        "config.EnableSeasonalVariants.name": "Enable Seasonal Variants",
+
+        // Appearance
+        "config.Appearance.name": "Appearance",
+        "config.Appearance.values.Vanilla": "Vanilla",
+        "config.Appearance.values.Blue": "Blue",
+        "config.Appearance.values.DarkBlue": "Dark Blue",
+        "config.Appearance.values.DarkBrown": "Dark Brown",
+        "config.Appearance.values.DarkRoof": "Dark Roof",
+        "config.Appearance.values.Green": "Green",
+        "config.Appearance.values.LightBrown": "Light Brown",
+        "config.Appearance.values.Pink": "Pink",
+        "config.Appearance.values.Red": "Red",
+        "config.Appearance.values.WhiteRoof": "White Roof",
+
+        // Desaturated Version
+        "config.EnableDesaturatedVersion.name": "Enable Desaturated Version",
+
+    // content.json
+
+        // Building
+        "Building.Name": "Auto-Sorter Building",
+        "Building.Description": "Using state of the art MagicTech, this building can automatically sort your possessions!",
+        "Building.InputFull": "The input is full, please close the input and wait a few moments.",
+    
+    // MapLoader.json
+    
+        // Interior Size
+        "config.InteriorSize.name": "Interior Size",
+        "config.InteriorSize.values.Small": "Small",
+        "config.InteriorSize.values.Medium": "Medium",
+        "config.InteriorSize.values.Large": "Large",
+}
