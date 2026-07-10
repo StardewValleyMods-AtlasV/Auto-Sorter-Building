@@ -37,19 +37,19 @@
           "Description": "{{i18n: Building.Description}}",
           "Texture": "{{ModId}}_AutoSorterBuilding",
           "Builder": "Robin",
-          "BuildCost": 50000,
+          "BuildCost": 5000,
           "BuildMaterials": [
             {
               "ItemId": 388,
-              "Amount": 500
+              "Amount": 100
             },
             {
               "ItemId": 335,
-              "Amount": 20
+              "Amount": 5
             },
             {
               "ItemId": 787,
-              "Amount": 10
+              "Amount": 2
             }
           ],
           "BuildDays": 3,
