@@ -1,0 +1,22 @@
+{
+    //Seasonal Variants
+    "config.EnableSeasonalVariants.name": "启用季节性纹理",
+
+    //Appearance
+    "config.Appearance.name": "外观颜色",
+    "config.Appearance.values.Vanilla": "原版",
+    "config.Appearance.values.Blue": "蓝色",
+    "config.Appearance.values.DarkBlue": "深蓝色",
+    "config.Appearance.values.DarkBrown": "深棕色",
+    "config.Appearance.values.DarkRoof": "暗色屋顶",
+    "config.Appearance.values.Green": "绿色",
+    "config.Appearance.values.LightBrown": "亮棕色",
+    "config.Appearance.values.Pink": "粉色",
+    "config.Appearance.values.Red": "红色",
+    "config.Appearance.values.WhiteRoof": "白色屋顶",
+
+    //Building
+    "Building.Name": "自动分拣机建筑",
+    "Building.Description": "使用最先进的魔法科技，这座建筑可以自动分类你的财产！",
+    "Building.InputFull": "输入已满，请关闭输入并稍等片刻。",
+}
