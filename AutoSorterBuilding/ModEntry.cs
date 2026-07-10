@@ -22,12 +22,21 @@ namespace AutoSorterBuilding
 
         // empty category ID used for signs that are empty as catch all
         private const string EMPTY_CATEGORY_ID = $"{CP_UNIQUE_ID}_EmptyCategory";
-        
+
+        // Chests Anywhere's unique mod ID and the modData key it reads/writes for a chest's custom name.
+        // Chests Anywhere stores its per-chest options in modData rather than the vanilla Name field
+        private const string CHESTS_ANYWHERE_MOD_ID = "Pathoschild.ChestsAnywhere";
+        private const string CHESTS_ANYWHERE_NAME_MODDATA_KEY = "Pathoschild.ChestsAnywhere/Name";
+
         // bool so compat warning doesn't repeat every onTimeChanged and spam the log
         private static int AutomateCompatWarningLoggedTimeCounter = 0;
-        
+
+        // Set once in Entry() based on whether Chests Anywhere is installed.
+        private static bool IsChestsAnywhereLoaded = false;
+
         private static IMonitor ModMonitor { get; set; } = null!;
         private static Harmony Harmony { get; set; } = null!;
+        private static ITranslationHelper Translation { get; set; } = null!;
         
         // Ordered list of locale specific RegEx for the "Level {0} {1}" style category strings
         // MeleeWeapon.getCategoryName() produces.
@@ -53,7 +62,12 @@ namespace AutoSorterBuilding
         public override void Entry(IModHelper helper)
         {
             ModMonitor = Monitor;
+            Translation = helper.Translation;
             Harmony = new Harmony(ModManifest.UniqueID);
+
+            // Just a modData read/write, so no Harmony needed
+            // it's just checked once here and used to gate naming later.
+            IsChestsAnywhereLoaded = helper.ModRegistry.IsLoaded(CHESTS_ANYWHERE_MOD_ID);
 
             /* This should be a Postfix so it will run AFTER the vanilla game's PerformBuildingChestAction function.
              This means our patch will run every time, even on other buildings and other chests, but we'll check the
@@ -268,13 +282,16 @@ namespace AutoSorterBuilding
                      and not some other mod interaction that might've happened in the middle of PerformBuildingChestAction. */
                     if (menu.context is Building building && building.buildingType.Value is BUILDING_ID)
                     {
-                        SortItems(building);
+                        SortItems(building, isManualSort: true);
                     }
                 }
             );
         }
 
-        private static void SortItems(Building building)
+        // isManualSort is true only when this was triggered by the player closing the input chest's menu
+        // (see Building_PerformBuildingChestAction_Postfix), and false when triggered by the OnTimeChanged
+        // timer.
+        private static void SortItems(Building building, bool isManualSort = false)
         {
             /* Not entirely necessary to log this, but may help with debugging if anything ever goes wrong
              to know which specific interior it was. The monitor logs to the Trace LogLevel by default, so
@@ -284,7 +301,7 @@ namespace AutoSorterBuilding
             /* This will give is a dictionary where the keys are item categories and the values are lists of
              chests we found inside this specific building instance. We collect them all now so that we don't
              have to search the entire interior for every item in the input chest. */
-            Dictionary<string, List<Chest>> chests = CollectChests(building);
+            Dictionary<string, List<Chest>> chests = CollectChests(building, isManualSort);
             
             /* If we didn't find any chests, or somehow all of our lists of chests are empty, then we can't sort anything,
              so we return early. */
@@ -388,9 +405,32 @@ namespace AutoSorterBuilding
             toSort.GetItemsForPlayer().AddRange(leftoverItems);
         }
 
-        private static Dictionary<string, List<Chest>> CollectChests(Building building)
+        // Chests Anywhere reads/writes its custom chest name from/to it's modData key directly, it's a
+        // plain data field, only ever set if it's currently empty, if it already holds any non-empty value, that means the player
+        // assume player named (or alike).
+        // To get the mod to rename, just empty out the name field in the chest
+        private static void UpdateChestAnywhereName(Chest chest, string name)
+        {
+            if (chest.modData.TryGetValue(CHESTS_ANYWHERE_NAME_MODDATA_KEY, out string? existingName) &&
+                !string.IsNullOrWhiteSpace(existingName))
+            {
+                return;
+            }
+
+            chest.modData[CHESTS_ANYWHERE_NAME_MODDATA_KEY] = name;
+        }
+
+        private static Dictionary<string, List<Chest>> CollectChests(Building building, bool updateChestNames)
         {
             Dictionary<string, List<Chest>> chests = new();
+
+            // Only populated when going to rename chests on pass. Holds every signed
+            // chest we find (including catch-all ones) paired with the category label its sign resolves
+            // to. can't name chests as found anymore, since Utility.ForEachItemIn doesn't
+            // guarantee it visits them in any particular order
+            List<(Chest Chest, string Category)>? chestsToName = updateChestNames && IsChestsAnywhereLoaded
+                ? new List<(Chest, string)>()
+                : null;
 
             /* This will get the indoor location unique to this specific building instance, no
              matter how many of this building type the player has built in their world. */
@@ -419,21 +459,24 @@ namespace AutoSorterBuilding
                          it's a non-null item anyway for us to assign to the displayedItem variable. */
                         if (sign.displayItem.Value is { } displayedItem)
                         {
-                            
-                            if (!chests.TryGetValue(GetItemCategory(displayedItem), out var chestList))
+                            string category = GetItemCategory(displayedItem);
+
+                            if (!chests.TryGetValue(category, out var chestList))
                             {
                                 /* If TryGetValue returns false here, it means this is the first time
                                  we've seen an item with this category, so we need to make a new List
                                  for our dictionary first, because we can't add a chest to a list that
                                  doesn't exist. */
                                 chestList = new List<Chest>();
-                                chests[GetItemCategory(displayedItem)] = chestList;
+                                chests[category] = chestList;
                             }
 
                             /* Chest objects are reference types, so when we add it to the list here, it's
                              not making a copy of it. It's giving our list an address to know where to find
                              this exact Chest instance in our building. */
                             chestList.Add(chest);
+
+                            chestsToName?.Add((chest, category));
                         }
                         else
                         {
@@ -446,6 +489,10 @@ namespace AutoSorterBuilding
                             }
                             
                             chestList.Add(chest);
+
+                            // Unlike vanilla category names, "Uncategorized" isn't a string pre-localized,
+                            // so this loads from the mods i18n files.
+                            chestsToName?.Add((chest, Translation.Get("uncategorized-chest-name")));
                         }
                     }
                 }
@@ -455,8 +502,28 @@ namespace AutoSorterBuilding
                  but we want to find EVERY chest in the map, so we need to keep returning true. */
                 return true;
             });
+
+            if (chestsToName is not null)
+            {
+                NameChestsInReadingOrder(chestsToName);
+            }
             
             return chests;
+        }
+
+        // Numbers and names every signed chest in the building in english reading order: left to right, top to bottom 
+        private static void NameChestsInReadingOrder(List<(Chest Chest, string Category)> chestsToName)
+        {
+            var orderedChests = chestsToName
+                .OrderBy(entry => entry.Chest.TileLocation.Y)
+                .ThenBy(entry => entry.Chest.TileLocation.X);
+
+            int index = 1;
+            foreach (var (chest, category) in orderedChests)
+            {
+                UpdateChestAnywhereName(chest, $"{index}. {category}");
+                index++;
+            }
         }
     }
 }
