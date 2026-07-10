@@ -149,7 +149,8 @@ namespace AutoSorterBuilding
             {
                 if (pattern.IsMatch(categoryName))
                 {
-                    return Regex.Replace(categoryName, @"\d", "");
+                    string stripped = pattern.Replace(categoryName, "");
+                    return Regex.Replace(stripped, @"\s{2,}", " ").Trim();
                 }
             }
 
