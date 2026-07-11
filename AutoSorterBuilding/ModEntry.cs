@@ -3,6 +3,7 @@ using StardewModdingAPI;
 using AutoSorterBuilding.Compat;
 using AutoSorterBuilding.Events;
 using AutoSorterBuilding.Patches;
+using AutoSorterBuilding.Content;
 
 namespace AutoSorterBuilding
 {
@@ -27,6 +28,7 @@ namespace AutoSorterBuilding
             AutomateCompat.Register(Harmony, helper, Monitor);
 
             TimeChangedHandler.Register(helper);
+            BuildingContentLoader.Register(helper);
         }
     }
 }
