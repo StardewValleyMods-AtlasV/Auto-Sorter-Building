@@ -12,10 +12,15 @@ namespace AutoSorterBuilding.Content
     // through content pipeline, replaces content pack
     internal static class BuildingContentLoader
     {
-        // Asset name for the interior map. Building.cs prefixes IndoorMap with "Maps\\" itself,
-        // so the raw BuildingData.IndoorMap value is the bare name
-        // but the asset actually provided via AssetRequested must be the full "Maps/..." name for some fucking reason
-        private static readonly string MapAssetName = $"Maps/{ModConstants.BUILDING_ID}";
+        // Asset names for each tier's interior map. Building.cs prefixes IndoorMap with "Maps\\"
+        // itself, so the raw BuildingData.IndoorMap value is the bare name, but the asset actually
+        // provided via AssetRequested must be the full "Maps/..." name for some fucking reason
+        private static readonly string SmallMapAssetName = $"Maps/{ModConstants.BUILDING_ID}";
+        private static readonly string MediumMapAssetName = $"Maps/{ModConstants.MEDIUM_BUILDING_ID}";
+        private static readonly string LargeMapAssetName = $"Maps/{ModConstants.LARGE_BUILDING_ID}";
+
+        // Upgrade tier, used to pick the right map/texture file and resolve config-driven texture paths.
+        private enum BuildingTier { Small, Medium, Large }
 
         // Tracks the season the currently loaded texture was built for, so DayStarted only
         // invalidates when the season has actually changed rather than every single day.
@@ -40,10 +45,13 @@ namespace AutoSorterBuilding.Content
             InvalidateTexture(helper);
         }
 
-        // Called from GMCMIntegration on field-change (live preview, might not want cause dark screen) and on save
+        // Called from GMCMIntegration on field-change (live preview, might not want cause dark screen) and on save.
+        // Invalidates all three tiers since a placed building may currently be at any of them.
         public static void InvalidateTexture(IModHelper helper)
         {
             helper.GameContent.InvalidateCache(ModConstants.BUILDING_ID);
+            helper.GameContent.InvalidateCache(ModConstants.MEDIUM_BUILDING_ID);
+            helper.GameContent.InvalidateCache(ModConstants.LARGE_BUILDING_ID);
         }
 
         private static void OnAssetRequested(object sender, AssetRequestedEventArgs e)
@@ -53,7 +61,50 @@ namespace AutoSorterBuilding.Content
                 e.Edit(asset =>
                 {
                     var data = asset.AsDictionary<string, BuildingData>().Data;
-                    data[ModConstants.BUILDING_ID] = BuildBuildingData();
+
+                    data[ModConstants.BUILDING_ID] = BuildBuildingData(
+                        buildingId: ModConstants.BUILDING_ID,
+                        indoorMapId: ModConstants.BUILDING_ID,
+                        nameKey: "Building.Name",
+                        descriptionKey: "Building.Description",
+                        buildCost: 5000,
+                        buildMaterials: new List<BuildingMaterial>
+                        {
+                            new BuildingMaterial { ItemId = "388", Amount = 100 }, // Wood
+                            new BuildingMaterial { ItemId = "335", Amount = 5 },   // Iron Bar
+                            new BuildingMaterial { ItemId = "787", Amount = 2 }    // Battery
+                        },
+                        buildingToUpgrade: null);
+
+                    data[ModConstants.MEDIUM_BUILDING_ID] = BuildBuildingData(
+                        buildingId: ModConstants.MEDIUM_BUILDING_ID,
+                        indoorMapId: ModConstants.MEDIUM_BUILDING_ID,
+                        // TODO: add "Building.Name.Medium" / "Building.Description.Medium" entries to the translation files
+                        nameKey: "Building.Name.Medium",
+                        descriptionKey: "Building.Description.Medium",
+                        buildCost: 10000,
+                        buildMaterials: new List<BuildingMaterial>
+                        {
+                            new BuildingMaterial { ItemId = "388", Amount = 200 }, // Wood
+                            new BuildingMaterial { ItemId = "390", Amount = 200 }, // Stone
+                            new BuildingMaterial { ItemId = "336", Amount = 5 }    // Gold Bar
+                        },
+                        buildingToUpgrade: ModConstants.BUILDING_ID);
+
+                    data[ModConstants.LARGE_BUILDING_ID] = BuildBuildingData(
+                        buildingId: ModConstants.LARGE_BUILDING_ID,
+                        indoorMapId: ModConstants.LARGE_BUILDING_ID,
+                        // TODO: add "Building.Name.Large" / "Building.Description.Large" entries to the translation files
+                        nameKey: "Building.Name.Large",
+                        descriptionKey: "Building.Description.Large",
+                        buildCost: 15000,
+                        buildMaterials: new List<BuildingMaterial>
+                        {
+                            new BuildingMaterial { ItemId = "709", Amount = 50 }, // Hardwood
+                            new BuildingMaterial { ItemId = "337", Amount = 5 },  // Iridium bar
+                            new BuildingMaterial { ItemId = "74", Amount = 1 }    // Prismatic shard
+                        },
+                        buildingToUpgrade: ModConstants.MEDIUM_BUILDING_ID);
                 });
                 return;
             }
@@ -61,22 +112,56 @@ namespace AutoSorterBuilding.Content
             if (e.Name.IsEquivalentTo(ModConstants.BUILDING_ID))
             {
                 e.LoadFromModFile<Microsoft.Xna.Framework.Graphics.Texture2D>(
-                    GetTextureAssetPath(),
+                    GetTextureAssetPath(BuildingTier.Small),
                     AssetLoadPriority.Medium);
                 return;
             }
 
-            if (e.Name.IsEquivalentTo(MapAssetName))
+            if (e.Name.IsEquivalentTo(ModConstants.MEDIUM_BUILDING_ID))
+            {
+                e.LoadFromModFile<Microsoft.Xna.Framework.Graphics.Texture2D>(
+                    GetTextureAssetPath(BuildingTier.Medium),
+                    AssetLoadPriority.Medium);
+                return;
+            }
+
+            if (e.Name.IsEquivalentTo(ModConstants.LARGE_BUILDING_ID))
+            {
+                e.LoadFromModFile<Microsoft.Xna.Framework.Graphics.Texture2D>(
+                    GetTextureAssetPath(BuildingTier.Large),
+                    AssetLoadPriority.Medium);
+                return;
+            }
+
+            if (e.Name.IsEquivalentTo(SmallMapAssetName))
             {
                 e.LoadFromModFile<xTile.Map>(
                     "Assets/Maps/SmallAutoSorterBuilding.tmx",
+                    AssetLoadPriority.Medium);
+                return;
+            }
+
+            if (e.Name.IsEquivalentTo(MediumMapAssetName))
+            {
+                e.LoadFromModFile<xTile.Map>(
+                    "Assets/Maps/MediumAutoSorterBuilding.tmx",
+                    AssetLoadPriority.Medium);
+                return;
+            }
+
+            if (e.Name.IsEquivalentTo(LargeMapAssetName))
+            {
+                e.LoadFromModFile<xTile.Map>(
+                    "Assets/Maps/LargeAutoSorterBuilding.tmx",
                     AssetLoadPriority.Medium);
             }
         }
 
         // Resolves the current config into a concrete file path under Assets/Images.
-        // {Saturated|Desaturated}/{Appearance}/AutoSorterBuilding_{season}.png
-        private static string GetTextureAssetPath()
+        // Small:  {Saturated|Desaturated}/{Appearance}/AutoSorterBuilding_{season}.png
+        // Medium: {Saturated|Desaturated}/{Appearance}/AutoSorterBuilding_Medium_{season}.png
+        // Large:  {Saturated|Desaturated}/{Appearance}/AutoSorterBuilding_Large_{season}.png
+        private static string GetTextureAssetPath(BuildingTier tier)
         {
             var config = GMCMIntegration.Config;
 
@@ -87,31 +172,44 @@ namespace AutoSorterBuilding.Content
                 ? Game1.season.ToString().ToLowerInvariant()
                 : "summer";
 
-            return $"Assets/Images/{saturation}/{appearance}/AutoSorterBuilding_{season}.png";
+            string sizeInfix = tier switch
+            {
+                BuildingTier.Medium => "Medium_",
+                BuildingTier.Large => "Large_",
+                _ => string.Empty
+            };
+
+            return $"Assets/Images/{saturation}/{appearance}/AutoSorterBuilding_{sizeInfix}{season}.png";
         }
 
-        private static BuildingData BuildBuildingData()
+        // Shared builder for all three tiers. Exterior geometry (Size, HumanDoor, BuildMenuDrawOffset),
+        // the input chest, its action tile, and ItemConversions are identical across tiers
+        // only the identity/upgrade-chain fields, cost, and indoor map differ.
+        private static BuildingData BuildBuildingData(
+            string buildingId,
+            string indoorMapId,
+            string nameKey,
+            string descriptionKey,
+            int buildCost,
+            List<BuildingMaterial> buildMaterials,
+            string? buildingToUpgrade)
         {
             return new BuildingData
             {
-                Name = ModEntry.Translation.Get("Building.Name"),
-                Description = ModEntry.Translation.Get("Building.Description"),
-                Texture = ModConstants.BUILDING_ID,
+                Name = ModEntry.Translation.Get(nameKey),
+                Description = ModEntry.Translation.Get(descriptionKey),
+                Texture = buildingId,
                 Builder = "Robin",
-                BuildCost = 5000,
-                BuildMaterials = new List<BuildingMaterial>
-                {
-                    new BuildingMaterial { ItemId = "388", Amount = 100 }, // Wood
-                    new BuildingMaterial { ItemId = "335", Amount = 5 },   // Iron Bar
-                    new BuildingMaterial { ItemId = "787", Amount = 2 }    // Battery
-                },
+                BuildCost = buildCost,
+                BuildMaterials = buildMaterials,
+                BuildingToUpgrade = buildingToUpgrade,
                 BuildDays = 3,
                 BuildMenuDrawOffset = new Point(0, -96),
                 Size = new Point(7, 3),
                 HumanDoor = new Point(3, 2),
                 AllowsFlooringUnderneath = true,
                 DrawLayers = new List<BuildingDrawLayer>(),
-                IndoorMap = ModConstants.BUILDING_ID,
+                IndoorMap = indoorMapId,
                 IndoorMapType = "StardewValley.Shed",
                 Chests = new List<BuildingChest>
                 {

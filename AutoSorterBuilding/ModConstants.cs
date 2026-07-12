@@ -9,6 +9,11 @@ namespace AutoSorterBuilding
         public const string BUILDING_ID = $"{CP_UNIQUE_ID}_AutoSorterBuilding";
         public const string INPUT_CHEST_ID = $"{CP_UNIQUE_ID}_InputChest";
 
+        // Upgrade tier building IDs. Each is registered as its own Data/Buildings entry with
+        // BuildingToUpgrade pointing at the previous tier, Small -> Medium -> Large.
+        public const string MEDIUM_BUILDING_ID = $"{BUILDING_ID}_Medium";
+        public const string LARGE_BUILDING_ID = $"{BUILDING_ID}_Large";
+
         // empty category ID used for signs that are empty as catch all
         public const string EMPTY_CATEGORY_ID = $"{CP_UNIQUE_ID}_EmptyCategory";
 
