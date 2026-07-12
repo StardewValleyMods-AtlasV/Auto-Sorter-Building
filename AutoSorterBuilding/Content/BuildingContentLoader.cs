@@ -2,15 +2,14 @@ using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
+using StardewValley;
 using StardewValley.GameData.Buildings;
+using AutoSorterBuilding.Config;
 
 namespace AutoSorterBuilding.Content
 {
     // Registers the building's Data/Buildings entry, its exterior texture, and its interior map
     // through content pipeline, replaces content pack
-    //
-    // TODO: Config-driven variants (season, appearance, desaturation, interior size)
-    // TODO: Helper.GameContent.InvalidateCache(...) calls when the config changes.
     internal static class BuildingContentLoader
     {
         // Asset name for the interior map. Building.cs prefixes IndoorMap with "Maps\\" itself,
@@ -18,9 +17,33 @@ namespace AutoSorterBuilding.Content
         // but the asset actually provided via AssetRequested must be the full "Maps/..." name for some fucking reason
         private static readonly string MapAssetName = $"Maps/{ModConstants.BUILDING_ID}";
 
+        // Tracks the season the currently loaded texture was built for, so DayStarted only
+        // invalidates when the season has actually changed rather than every single day.
+        private static string? _lastAppliedSeason;
+
         public static void Register(IModHelper helper)
         {
             helper.Events.Content.AssetRequested += OnAssetRequested;
+            helper.Events.GameLoop.DayStarted += (_, _) => OnDayStarted(helper);
+        }
+
+        private static void OnDayStarted(IModHelper helper)
+        {
+            if (!GMCMIntegration.Config.EnableSeasonalVariants)
+                return;
+
+            string currentSeason = Game1.season.ToString();
+            if (currentSeason == _lastAppliedSeason)
+                return;
+
+            _lastAppliedSeason = currentSeason;
+            InvalidateTexture(helper);
+        }
+
+        // Called from GMCMIntegration on field-change (live preview, might not want cause dark screen) and on save
+        public static void InvalidateTexture(IModHelper helper)
+        {
+            helper.GameContent.InvalidateCache(ModConstants.BUILDING_ID);
         }
 
         private static void OnAssetRequested(object sender, AssetRequestedEventArgs e)
@@ -38,7 +61,7 @@ namespace AutoSorterBuilding.Content
             if (e.Name.IsEquivalentTo(ModConstants.BUILDING_ID))
             {
                 e.LoadFromModFile<Microsoft.Xna.Framework.Graphics.Texture2D>(
-                    "Assets/Images/Saturated/Vanilla/AutoSorterBuilding_spring.png",
+                    GetTextureAssetPath(),
                     AssetLoadPriority.Medium);
                 return;
             }
@@ -49,6 +72,22 @@ namespace AutoSorterBuilding.Content
                     "Assets/Maps/SmallAutoSorterBuilding.tmx",
                     AssetLoadPriority.Medium);
             }
+        }
+
+        // Resolves the current config into a concrete file path under Assets/Images.
+        // {Saturated|Desaturated}/{Appearance}/AutoSorterBuilding_{season}.png
+        private static string GetTextureAssetPath()
+        {
+            var config = GMCMIntegration.Config;
+
+            string saturation = config.EnableDesaturatedVersion ? "Desaturated" : "Saturated";
+            string appearance = config.Appearance;
+            // default to the summer variant.
+            string season = config.EnableSeasonalVariants
+                ? Game1.season.ToString().ToLowerInvariant()
+                : "summer";
+
+            return $"Assets/Images/{saturation}/{appearance}/AutoSorterBuilding_{season}.png";
         }
 
         private static BuildingData BuildBuildingData()

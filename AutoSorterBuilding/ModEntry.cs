@@ -4,6 +4,7 @@ using AutoSorterBuilding.Compat;
 using AutoSorterBuilding.Events;
 using AutoSorterBuilding.Patches;
 using AutoSorterBuilding.Content;
+using AutoSorterBuilding.Config;
 
 namespace AutoSorterBuilding
 {
@@ -29,6 +30,7 @@ namespace AutoSorterBuilding
 
             TimeChangedHandler.Register(helper);
             BuildingContentLoader.Register(helper);
+            GMCMIntegration.Register(helper, ModManifest);
         }
     }
 }
