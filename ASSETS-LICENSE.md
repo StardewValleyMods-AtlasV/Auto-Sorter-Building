@@ -1,0 +1,2 @@
+ARR 2025 CA LLC (for the saturated vanilla Asset which was using spritebashing of vanilla assets, and the Small, Medium, and Large overlays)
+ARR 2025 NaiDuBao https://www.nexusmods.com/profile/NaiDuBao/mods (for the desaturated and saturated colour options and season overlays)
