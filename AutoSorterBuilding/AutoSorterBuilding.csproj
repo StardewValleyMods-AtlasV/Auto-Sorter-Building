@@ -23,6 +23,5 @@
     <ItemGroup>
         <PackageReference Include="Pathoschild.Stardew.ModBuildConfig" Version="4.*"/>
         <None Include="Assets\**\*" CopyToOutputDirectory="PreserveNewest" />
-<!--        <ContentPacks Include="[CP] Sorting Building" Version="$(Version)" />-->
     </ItemGroup>
 </Project>

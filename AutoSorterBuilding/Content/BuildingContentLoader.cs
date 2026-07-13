@@ -26,8 +26,13 @@ namespace AutoSorterBuilding.Content
         // invalidates when the season has actually changed rather than every single day.
         private static string? _lastAppliedSeason;
 
+        // Stored so ComposeTexture (called later by SMAPI, inside the deferred e.LoadFrom
+        // delegate, not from this call stack) can load the layer source files.
+        private static IModHelper? _helper;
+
         public static void Register(IModHelper helper)
         {
+            _helper = helper;
             helper.Events.Content.AssetRequested += OnAssetRequested;
             helper.Events.GameLoop.DayStarted += (_, _) => OnDayStarted(helper);
         }
@@ -111,25 +116,19 @@ namespace AutoSorterBuilding.Content
 
             if (e.Name.IsEquivalentTo(ModConstants.BUILDING_ID))
             {
-                e.LoadFromModFile<Microsoft.Xna.Framework.Graphics.Texture2D>(
-                    GetTextureAssetPath(BuildingTier.Small),
-                    AssetLoadPriority.Medium);
+                e.LoadFrom(() => ComposeTexture(BuildingTier.Small), AssetLoadPriority.Medium);
                 return;
             }
 
             if (e.Name.IsEquivalentTo(ModConstants.MEDIUM_BUILDING_ID))
             {
-                e.LoadFromModFile<Microsoft.Xna.Framework.Graphics.Texture2D>(
-                    GetTextureAssetPath(BuildingTier.Medium),
-                    AssetLoadPriority.Medium);
+                e.LoadFrom(() => ComposeTexture(BuildingTier.Medium), AssetLoadPriority.Medium);
                 return;
             }
 
             if (e.Name.IsEquivalentTo(ModConstants.LARGE_BUILDING_ID))
             {
-                e.LoadFromModFile<Microsoft.Xna.Framework.Graphics.Texture2D>(
-                    GetTextureAssetPath(BuildingTier.Large),
-                    AssetLoadPriority.Medium);
+                e.LoadFrom(() => ComposeTexture(BuildingTier.Large), AssetLoadPriority.Medium);
                 return;
             }
 
@@ -157,29 +156,83 @@ namespace AutoSorterBuilding.Content
             }
         }
 
-        // Resolves the current config into a concrete file path under Assets/Images.
-        // Small:  {Saturated|Desaturated}/{Appearance}/AutoSorterBuilding_{season}.png
-        // Medium: {Saturated|Desaturated}/{Appearance}/AutoSorterBuilding_Medium_{season}.png
-        // Large:  {Saturated|Desaturated}/{Appearance}/AutoSorterBuilding_Large_{season}.png
-        private static string GetTextureAssetPath(BuildingTier tier)
+        // Composites the three source layers into a single flattened texture:
+        //   Base_{Colour}_{Saturated|Desaturated}.png (bottom) -> Overlay_{Tier}.png -> Overlay_{Season}.png (top)
+        // SMAPI itself caches the returned Texture2D under the tier's asset name until
+        // InvalidateTexture() is called (day-change or config save), so only one composited texture
+        // per tier asset name (three total: Small/Medium/Large)
+        //
+        // all three source layers, across colour/tier/season combination, share identical pixel dimensions,
+        // single width/height read from the base layer is safe to reuse for all three GetData calls.
+        // A mismatched file will throw a GetData size-mismatch exception rather than silently
+        // misaligning layers(fail loud, so I actually notice).
+        private static Microsoft.Xna.Framework.Graphics.Texture2D ComposeTexture(BuildingTier tier)
         {
             var config = GMCMIntegration.Config;
 
+            string colour = config.Appearance;
             string saturation = config.EnableDesaturatedVersion ? "Desaturated" : "Saturated";
-            string appearance = config.Appearance;
-            // default to the summer variant.
             string season = config.EnableSeasonalVariants
-                ? Game1.season.ToString().ToLowerInvariant()
-                : "summer";
+                ? Game1.season.ToString()
+                : "Summer"; // Summer overlay is the intentionally-blank/transparent variant.
+            string tierName = tier.ToString(); // "Small" | "Medium" | "Large"
 
-            string sizeInfix = tier switch
+            var baseTex = _helper!.ModContent.Load<Microsoft.Xna.Framework.Graphics.Texture2D>(
+                $"Assets/Images/Base_{colour}_{saturation}.png");
+            var tierOverlay = _helper.ModContent.Load<Microsoft.Xna.Framework.Graphics.Texture2D>(
+                $"Assets/Images/Overlay_{tierName}.png");
+            var seasonOverlay = _helper.ModContent.Load<Microsoft.Xna.Framework.Graphics.Texture2D>(
+                $"Assets/Images/Overlay_{season}.png");
+
+            int width = baseTex.Width;
+            int height = baseTex.Height;
+            int pixelCount = width * height;
+
+            var basePixels = new Color[pixelCount];
+            var tierPixels = new Color[pixelCount];
+            var seasonPixels = new Color[pixelCount];
+            baseTex.GetData(basePixels);
+            tierOverlay.GetData(tierPixels);
+            seasonOverlay.GetData(seasonPixels);
+
+            var result = new Color[pixelCount];
+            for (int i = 0; i < pixelCount; i++)
             {
-                BuildingTier.Medium => "Medium_",
-                BuildingTier.Large => "Large_",
-                _ => string.Empty
-            };
+                Color composited = AlphaOver(basePixels[i], tierPixels[i]);
+                result[i] = AlphaOver(composited, seasonPixels[i]);
+            }
 
-            return $"Assets/Images/{saturation}/{appearance}/AutoSorterBuilding_{sizeInfix}{season}.png";
+            var composedTexture = new Microsoft.Xna.Framework.Graphics.Texture2D(
+                Game1.graphics.GraphicsDevice, width, height);
+            composedTexture.SetData(result);
+            return composedTexture;
+        }
+
+        // Standard "src over dst" alpha compositing
+        private static Color AlphaOver(Color dst, Color src)
+        {
+            if (src.A == 0)
+            {
+                return dst;
+            }
+            if (src.A == 255)
+            {
+                return src;
+            }
+
+            float srcA = src.A / 255f;
+            float dstA = dst.A / 255f;
+            float outA = srcA + dstA * (1f - srcA);
+            if (outA <= 0f)
+            {
+                return Color.Transparent;
+            }
+
+            float r = (src.R * srcA + dst.R * dstA * (1f - srcA)) / outA;
+            float g = (src.G * srcA + dst.G * dstA * (1f - srcA)) / outA;
+            float b = (src.B * srcA + dst.B * dstA * (1f - srcA)) / outA;
+
+            return new Color((byte)r, (byte)g, (byte)b, (byte)(outA * 255f));
         }
 
         // Shared builder for all three tiers. Exterior geometry (Size, HumanDoor, BuildMenuDrawOffset),
