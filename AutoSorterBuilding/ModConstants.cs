@@ -24,5 +24,21 @@ namespace AutoSorterBuilding
 
         // Automate's unique mod ID, used to gate the compat patch on whether it's installed.
         public const string AUTOMATE_MOD_ID = "Pathoschild.Automate";
+
+        // Sign slot-2 "selector" item IDs.
+        public const string SELECTOR_COLOUR_ID = $"{CP_UNIQUE_ID}_Selector_Colour";
+        public const string SELECTOR_QUALITY_ID = $"{CP_UNIQUE_ID}_Selector_Quality";
+        public const string SELECTOR_FLAVOUR_ID = $"{CP_UNIQUE_ID}_Selector_Flavour";
+        public const string SELECTOR_MODID_ID = $"{CP_UNIQUE_ID}_Selector_ModID";
+
+        // Asset name prefix under which selector item textures are registered via AssetRequested,
+        // e.g. "Mods/AtlasV.AutoSorterBuilding/SelectorItems/Colour".
+        public const string SELECTOR_TEXTURE_ASSET_PREFIX = $"Mods/{CP_UNIQUE_ID}/SelectorItems";
+        
+        // modData key on a Sign instance holding the raw selector item ID assigned to slot 2 (e.g.
+        // "AtlasV.AutoSorterBuilding_Selector_Colour"). Presence of this key is also used as the sole
+        // signal in draw() that a Sign belongs to an AutoSorterBuilding, since draw() has no location
+        // parameter to check against the interior cache directly.
+        public const string SELECTOR_SLOT_MODDATA_KEY = $"{CP_UNIQUE_ID}_SelectorSlot";
     }
 }

@@ -27,9 +27,11 @@ namespace AutoSorterBuilding
             BuildingChestActionPatch.Register(Harmony);
             ItemConversionPatch.Register(Harmony);
             AutomateCompat.Register(Harmony, helper, Monitor);
+            SignSelectorPatch.Register(Harmony, helper);
 
             TimeChangedHandler.Register(helper);
             BuildingContentLoader.Register(helper);
+            SelectorItems.Register(helper);
             GMCMIntegration.Register(helper, ModManifest);
         }
     }

@@ -35,5 +35,15 @@
         "config.InteriorSize.values.Medium": "Medium",
         "config.InteriorSize.values.Large": "Large",
 
-        "uncategorized-chest-name": "Uncategorized"
+        "uncategorized-chest-name": "Uncategorized",
+    
+    // Selector Items
+        "selector.colour.name": "Selector (Colour)",
+        "selector.colour.description": "This selector allows the AutoSorter Building to sort by Colour when applied second to a sign",
+        "selector.quality.name": "Selector (Quality)",
+        "selector.quality.description": "This selector allows the AutoSorter Building to sort by Quality when applied second to a sign",
+        "selector.flavour.name": "Selector (Flavour)",
+        "selector.flavour.description": "This selector allows the AutoSorter Building to sort by Flavour when applied second to a sign",
+        "selector.modid.name": "Selector (ModID)",
+        "selector.modid.description": "This selector allows the AutoSorter Building to sort by ModID when applied second to a sign"
 }

@@ -21,22 +21,15 @@ namespace AutoSorterBuilding.Events
         {
             if (!Context.IsMainPlayer) return;
 
-            // Loops for narrowing down to Auto sort building
-            foreach (GameLocation location in Game1.locations)
+            foreach (Building building in ItemSorter.FindAutoSorterBuildings())
             {
-                foreach (Building building in location.buildings)
+                Chest inputChest = building.GetBuildingChest(ModConstants.INPUT_CHEST_ID);
+                if (inputChest.GetMutex().IsLocked())
                 {
-                    if (building.buildingType.Value is not ModConstants.BUILDING_ID) continue;
-
-                    // checks mutex by watching ItemGrabMenu
-                    Chest inputChest = building.GetBuildingChest(ModConstants.INPUT_CHEST_ID);
-                    if (inputChest.GetMutex().IsLocked())
-                    {
-                        ModEntry.ModMonitor.Log($"Sorting items prevented in {building.GetIndoorsName()} due to mutex lock");
-                        continue;
-                    }
-                    ItemSorter.SortItems(building);
+                    ModEntry.ModMonitor.Log($"Sorting items prevented in {building.GetIndoorsName()} due to mutex lock");
+                    continue;
                 }
+                ItemSorter.SortItems(building);
             }
         }
     }

@@ -5,5 +5,5 @@
     "Description": "The SMAPI core for Auto-Sorter Building",
     "UniqueID": "AtlasV.AutoSorterBuildingCore",
     "EntryDll": "AutoSorterBuilding.dll",
-    "UpdateKeys": []
+    "UpdateKeys": ["Nexus:36568"]
 }

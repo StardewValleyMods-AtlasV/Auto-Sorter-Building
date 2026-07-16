@@ -19,9 +19,10 @@ namespace AutoSorterBuilding.Sorting
              it won't show in the console, but it'll appear in the log file when uploaded somewhere. */
             ModEntry.ModMonitor.Log($"Sorting items into AutoSorter with name {building.GetIndoorsName()}");
 
-            /* This will give is a dictionary where the keys are item categories and the values are lists of
-             chests we found inside this specific building instance. We collect them all now so that we don't
-             have to search the entire interior for every item in the input chest. */
+            // This will give is a dictionary where the keys are item categories (or, for signs with a
+            // slot-2 selector assigned, namespaced attribute keys like "Colour:red") and the values are
+            // lists of chests we found inside this specific building instance. collecting them all now so
+            // that theres no need to search the entire interior for every item in the input chest.
             Dictionary<string, List<Chest>> chests = CollectChests(building, isManualSort);
 
             /* If we didn't find any chests, or somehow all of our lists of chests are empty, then we can't sort anything,
@@ -61,8 +62,13 @@ namespace AutoSorterBuilding.Sorting
 
             foreach (var item in itemsToSort)
             {
-                /* If we don't have any chests with a matching category... */
-                if (!chests.TryGetValue(ItemCategoryHelper.GetItemCategory(item), out var chestList))
+                // Walks the default selector priority order (Flavour, Colour, Quality, ModID), then
+                // falls back to plain category. Extraction failure (item doesn't have the attribute) and
+                // lookup miss (item has the attribute, but no sign in this building is bucketed for that
+                // specific value) are treated identically - both just move on to the next candidate. */
+                List<Chest>? chestList = ResolveChestList(chests, item);
+
+                if (chestList is null)
                 {
                     /* ...but we DO have catch-all chests, then we'll just use those. */
                     if (EmptyCategoryChests is not null)
@@ -126,6 +132,27 @@ namespace AutoSorterBuilding.Sorting
             toSort.GetItemsForPlayer().AddRange(leftoverItems);
         }
 
+        // Tries each registered extractor in default priority order (Flavour, Colour, Quality, ModID),
+        // using the first namespaced key ("{TypeLabel}:{value}") that has a registered bucket. Falls
+        // back to the plain category key if none of the selector dimensions produced a hit - this is
+        // the single fallback path for both "item doesn't have this attribute" and "building has no
+        // sign bucketed for this specific value".
+        private static List<Chest>? ResolveChestList(Dictionary<string, List<Chest>> chests, Item item)
+        {
+            foreach (ISortKeyExtractor extractor in SortKeyExtractorRegistry.PriorityOrder)
+            {
+                string? value = extractor.ExtractKey(item);
+                if (value is null) continue;
+
+                if (chests.TryGetValue($"{extractor.TypeLabel}:{value}", out List<Chest>? chestList))
+                {
+                    return chestList;
+                }
+            }
+
+            return chests.GetValueOrDefault(ItemCategoryHelper.GetItemCategory(item));
+        }
+
         private static Dictionary<string, List<Chest>> CollectChests(Building building, bool updateChestNames)
         {
             Dictionary<string, List<Chest>> chests = new();
@@ -165,7 +192,7 @@ namespace AutoSorterBuilding.Sorting
                          it's a non-null item anyway for us to assign to the displayedItem variable. */
                         if (sign.displayItem.Value is { } displayedItem)
                         {
-                            string category = ItemCategoryHelper.GetItemCategory(displayedItem);
+                            string category = GetSignBucketKey(sign, displayedItem);
 
                             if (!chests.TryGetValue(category, out var chestList))
                             {
@@ -215,6 +242,44 @@ namespace AutoSorterBuilding.Sorting
             }
 
             return chests;
+        }
+
+        // Resolves the bucket key a given signed chest should register under. If the sign has a
+        // slot-2 selector assigned and extraction succeeds against the slot-1 displayed item, the
+        // category is ignored entirely and the sign becomes a catch-all for that specific attribute
+        // value (e.g. a Flavour-selector sign showing Blueberry Jam buckets ALL blueberry-flavoured
+        // items, regardless of their category). If there's no selector, or extraction fails against
+        // the displayed item, this falls back to the plain category - the same single fallback
+        // behaviour used everywhere else in this system.
+        private static string GetSignBucketKey(Sign sign, Item displayedItem)
+        {
+            if (sign.modData.TryGetValue(ModConstants.SELECTOR_SLOT_MODDATA_KEY, out string? selectorId) &&
+                SortKeyExtractorRegistry.TryGetExtractor(selectorId, out ISortKeyExtractor? extractor))
+            {
+                string? value = extractor!.ExtractKey(displayedItem);
+                if (value is not null)
+                {
+                    return $"{extractor.TypeLabel}:{value}";
+                }
+            }
+
+            return ItemCategoryHelper.GetItemCategory(displayedItem);
+        }
+
+        // Extracted from TimeChangedHandler so SignSelectorPatch can reuse the same "find my buildings"
+        // logic to build its interior-location cache, rather than duplicating the search.
+        public static IEnumerable<Building> FindAutoSorterBuildings()
+        {
+            foreach (GameLocation location in Game1.locations)
+            {
+                foreach (Building building in location.buildings)
+                {
+                    if (building.buildingType.Value is ModConstants.BUILDING_ID)
+                    {
+                        yield return building;
+                    }
+                }
+            }
         }
     }
 }
