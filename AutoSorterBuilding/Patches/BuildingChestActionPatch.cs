@@ -30,7 +30,7 @@ namespace AutoSorterBuilding.Patches
              means that our input chest wasn't actually opened. This should only happen if the chest type
              in the Content Patcher pack is changed from "Chest" to "Input" or "Output" but who knows what
              other mods might do, so we'll check for it just to be safe. */
-            if (__instance.buildingType.Value is not ModConstants.BUILDING_ID ||
+            if (!ModConstants.IsAutoSorterBuildingType(__instance.buildingType.Value) ||
                 Game1.activeClickableMenu is not ItemGrabMenu menu) return;
 
             /* The menu's exitFunction doesn't always get called, so we use actionsWhenPlayerFree here to
@@ -39,7 +39,8 @@ namespace AutoSorterBuilding.Patches
                 {
                     /* Can't hurt to double-check that it's our building type that is the reason this menu is opened,
                      and not some other mod interaction that might've happened in the middle of PerformBuildingChestAction. */
-                    if (menu.context is Building building && building.buildingType.Value is ModConstants.BUILDING_ID)
+                    if (menu.context is Building building &&
+                        ModConstants.IsAutoSorterBuildingType(building.buildingType.Value))
                     {
                         ItemSorter.SortItems(building, isManualSort: true);
                     }

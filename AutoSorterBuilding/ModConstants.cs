@@ -41,5 +41,18 @@ namespace AutoSorterBuilding
         // signal in draw() that a Sign belongs to an AutoSorterBuilding, since draw() has no location
         // parameter to check against the interior cache directly.
         public const string SELECTOR_SLOT_MODDATA_KEY = $"{CP_UNIQUE_ID}_SelectorSlot";
+        
+        // All building tier IDs, used anywhere a check like "is this an AutoSorterBuilding, regardless
+        // of which upgrade tier it currently is" is needed. When a 4th tier is ever added, this is the
+        // only place that needs updating for that check to apply everywhere.
+        public static readonly System.Collections.Generic.HashSet<string> ALL_BUILDING_IDS = new()
+        {
+            BUILDING_ID,
+            MEDIUM_BUILDING_ID,
+            LARGE_BUILDING_ID
+        };
+
+        public static bool IsAutoSorterBuildingType(string? buildingType) =>
+            buildingType is not null && ALL_BUILDING_IDS.Contains(buildingType);
     }
 }

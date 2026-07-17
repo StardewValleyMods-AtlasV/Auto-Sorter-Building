@@ -285,7 +285,7 @@ namespace AutoSorterBuilding.Sorting
             {
                 foreach (Building building in location.buildings)
                 {
-                    if (building.buildingType.Value is ModConstants.BUILDING_ID)
+                    if (ModConstants.IsAutoSorterBuildingType(building.buildingType.Value))
                     {
                         yield return building;
                     }

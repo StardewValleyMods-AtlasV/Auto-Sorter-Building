@@ -22,7 +22,7 @@ namespace AutoSorterBuilding.Patches
         public static bool Prefix(Building __instance)
         {
             /* Since this is a bool prefix, Harmony will not run the original function if we return false. */
-            if (__instance.buildingType.Value is ModConstants.BUILDING_ID) return false;
+            if (ModConstants.IsAutoSorterBuildingType(__instance.buildingType.Value)) return false;
             return true;
         }
     }
