@@ -17,5 +17,10 @@ namespace AutoSorterBuilding.Sorting
         // this attribute (or it can't be determined). Null is the single "extraction failed" signal
         // that callers (ItemSorter) use to fall through to the next priority level.
         string? ExtractKey(Item item);
+        
+        // Builds the Chests Anywhere display label for a resolved bucket value (e.g. "red" ->
+        // "Colour: Red"). Called only at chest-naming time, never during sort resolution, so it's
+        // fine for this to do heavier work
+        string GetDisplayLabel(string value);
     }
 }

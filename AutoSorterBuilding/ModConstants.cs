@@ -30,6 +30,7 @@ namespace AutoSorterBuilding
         public const string SELECTOR_QUALITY_ID = $"{CP_UNIQUE_ID}_Selector_Quality";
         public const string SELECTOR_FLAVOUR_ID = $"{CP_UNIQUE_ID}_Selector_Flavour";
         public const string SELECTOR_MODID_ID = $"{CP_UNIQUE_ID}_Selector_ModID";
+        public const string SELECTOR_GEODE_ID = $"{CP_UNIQUE_ID}_Selector_Geode";
 
         // Asset name prefix under which selector item textures are registered via AssetRequested,
         // e.g. "Mods/AtlasV.AutoSorterBuilding/SelectorItems/Colour".

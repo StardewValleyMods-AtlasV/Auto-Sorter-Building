@@ -28,6 +28,7 @@ namespace AutoSorterBuilding.Content
             new SelectorDefinition { ItemId = ModConstants.SELECTOR_QUALITY_ID, TypeLabel = "Quality", TranslationKeyPrefix = "selector.quality" },
             new SelectorDefinition { ItemId = ModConstants.SELECTOR_FLAVOUR_ID, TypeLabel = "Flavour", TranslationKeyPrefix = "selector.flavour" },
             new SelectorDefinition { ItemId = ModConstants.SELECTOR_MODID_ID, TypeLabel = "ModID", TranslationKeyPrefix = "selector.modid" },
+            new SelectorDefinition { ItemId = ModConstants.SELECTOR_GEODE_ID, TypeLabel = "Geode", TranslationKeyPrefix = "selector.geode" },
         };
 
         internal static void Register(IModHelper helper)

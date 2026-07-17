@@ -76,6 +76,66 @@ namespace AutoSorterBuilding.Config
                 tooltip: () => ModEntry.Translation.Get("Config.EnableDesaturatedVersion.Tooltip"),
                 fieldId: "EnableDesaturatedVersion"
             );
+            
+            configMenu.AddSectionTitle(
+                mod: manifest,
+                text: () => ModEntry.Translation.Get("Config.SortPriority.SectionTitle")
+            );
+
+            configMenu.AddParagraph(
+                mod: manifest,
+                text: () => ModEntry.Translation.Get("Config.SortPriority.Explanation")
+            );
+
+            configMenu.AddNumberOption(
+                mod: manifest,
+                getValue: () => Config.GeodePriority,
+                setValue: value => Config.GeodePriority = value,
+                name: () => ModEntry.Translation.Get("Config.GeodePriority.Name"),
+                tooltip: () => ModEntry.Translation.Get("Config.GeodePriority.Tooltip"),
+                min: 1, max: 5, interval: 1,
+                fieldId: "GeodePriority"
+            );
+
+            configMenu.AddNumberOption(
+                mod: manifest,
+                getValue: () => Config.FlavourPriority,
+                setValue: value => Config.FlavourPriority = value,
+                name: () => ModEntry.Translation.Get("Config.FlavourPriority.Name"),
+                tooltip: () => ModEntry.Translation.Get("Config.FlavourPriority.Tooltip"),
+                min: 1, max: 5, interval: 1,
+                fieldId: "FlavourPriority"
+            );
+
+            configMenu.AddNumberOption(
+                mod: manifest,
+                getValue: () => Config.ColourPriority,
+                setValue: value => Config.ColourPriority = value,
+                name: () => ModEntry.Translation.Get("Config.ColourPriority.Name"),
+                tooltip: () => ModEntry.Translation.Get("Config.ColourPriority.Tooltip"),
+                min: 1, max: 5, interval: 1,
+                fieldId: "ColourPriority"
+            );
+
+            configMenu.AddNumberOption(
+                mod: manifest,
+                getValue: () => Config.QualityPriority,
+                setValue: value => Config.QualityPriority = value,
+                name: () => ModEntry.Translation.Get("Config.QualityPriority.Name"),
+                tooltip: () => ModEntry.Translation.Get("Config.QualityPriority.Tooltip"),
+                min: 1, max: 5, interval: 1,
+                fieldId: "QualityPriority"
+            );
+
+            configMenu.AddNumberOption(
+                mod: manifest,
+                getValue: () => Config.ModIdPriority,
+                setValue: value => Config.ModIdPriority = value,
+                name: () => ModEntry.Translation.Get("Config.ModIdPriority.Name"),
+                tooltip: () => ModEntry.Translation.Get("Config.ModIdPriority.Tooltip"),
+                min: 1, max: 5, interval: 1,
+                fieldId: "ModIdPriority"
+            );
         }
     }
 }

@@ -1,11 +1,14 @@
 {
-    // AssetLoader.json
+        // Appearance section title
+        "Config.Appearance.SectionTitle": "Appearance",
 
         // Seasonal Variants
-        "config.EnableSeasonalVariants.name": "Enable Seasonal Variants",
+        "Config.EnableSeasonalVariants.Name": "Enable Seasonal Variants",
+        "Config.EnableSeasonalVariants.Tooltip": "When enabled, the building's exterior automatically changes to match the current season.",
 
         // Appearance
-        "config.Appearance.name": "Appearance",
+        "Config.Appearance.Name": "Appearance",
+        "Config.Appearance.Tooltip": "Choose the exterior colour scheme for the building.",
         "config.Appearance.values.Vanilla": "Vanilla",
         "config.Appearance.values.Blue": "Blue",
         "config.Appearance.values.DarkBlue": "Dark Blue",
@@ -18,26 +21,41 @@
         "config.Appearance.values.WhiteRoof": "White Roof",
 
         // Desaturated Version
-        "config.EnableDesaturatedVersion.name": "Enable Desaturated Version",
+        "Config.EnableDesaturatedVersion.Name": "Enable Desaturated Version",
+        "Config.EnableDesaturatedVersion.Tooltip": "When enabled, uses a desaturated version of the chosen colour scheme instead of the fully saturated one.",
 
-    // content.json
+        // Sort Priority section
+        "Config.SortPriority.SectionTitle": "Sort Priority",
+        "Config.SortPriority.Explanation": "Controls which attribute is checked first when a sign has a selector attached. Lower numbers are tried first, if unmatched, sorting falls back to category.",
 
+        "Config.GeodePriority.Name": "Geode Priority",
+        "Config.GeodePriority.Tooltip": "Priority rank for sorting by Geode when a Geode selector is attached to a sign. Lower numbers are checked first.",
+
+        "Config.FlavourPriority.Name": "Flavour Priority",
+        "Config.FlavourPriority.Tooltip": "Priority rank for sorting by Flavour when a Flavour selector is attached to a sign. Lower numbers are checked first.",
+
+        "Config.ColourPriority.Name": "Colour Priority",
+        "Config.ColourPriority.Tooltip": "Priority rank for sorting by Colour when a Colour selector is attached to a sign. Lower numbers are checked first.",
+
+        "Config.QualityPriority.Name": "Quality Priority",
+        "Config.QualityPriority.Tooltip": "Priority rank for sorting by Quality when a Quality selector is attached to a sign. Lower numbers are checked first.",
+
+        "Config.ModIdPriority.Name": "Mod ID Priority",
+        "Config.ModIdPriority.Tooltip": "Priority rank for sorting by Mod ID when a Mod ID selector is attached to a sign. Lower numbers are checked first.",
+        
         // Building
         "Building.Name": "Auto-Sorter Building",
         "Building.Description": "Using state of the art MagicTech, this building can automatically sort your possessions!",
+        "Building.Name.Medium": "Auto-Sorter Building (Medium)",
+        "Building.Description.Medium": "An upgraded Auto-Sorter Building with more room for destination chests.",
+        "Building.Name.Large": "Auto-Sorter Building (Large)",
+        "Building.Description.Large": "The largest Auto-Sorter Building, with room for as many destination chests as you could need.",
         "Building.InputFull": "The input is full, please close the input and wait a few moments.",
-    
-    // MapLoader.json
-    
-        // Interior Size
-        "config.InteriorSize.name": "Interior Size",
-        "config.InteriorSize.values.Small": "Small",
-        "config.InteriorSize.values.Medium": "Medium",
-        "config.InteriorSize.values.Large": "Large",
 
+        // Uncatagorised category chest name
         "uncategorized-chest-name": "Uncategorized",
-    
-    // Selector Items
+
+        // Selector Items
         "selector.colour.name": "Selector (Colour)",
         "selector.colour.description": "This selector allows the AutoSorter Building to sort by Colour when applied second to a sign",
         "selector.quality.name": "Selector (Quality)",
@@ -45,5 +63,7 @@
         "selector.flavour.name": "Selector (Flavour)",
         "selector.flavour.description": "This selector allows the AutoSorter Building to sort by Flavour when applied second to a sign",
         "selector.modid.name": "Selector (ModID)",
-        "selector.modid.description": "This selector allows the AutoSorter Building to sort by ModID when applied second to a sign"
+        "selector.modid.description": "This selector allows the AutoSorter Building to sort by ModID when applied second to a sign",
+        "selector.geode.name": "Selector (Geode)",
+        "selector.geode.description": "This selector allows the AutoSorter Building to sort by Geode when applied second to a sign"
 }

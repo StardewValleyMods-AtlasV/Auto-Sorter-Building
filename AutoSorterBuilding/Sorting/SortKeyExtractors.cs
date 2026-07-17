@@ -21,6 +21,14 @@ namespace AutoSorterBuilding.Sorting
             string? preservedId = obj.GetPreservedItemId();
             return string.IsNullOrEmpty(preservedId) ? null : preservedId;
         }
+        
+        // value is the raw preserved item ID (e.g. "258"), resolve it to a real display name
+        // ("Blueberry") rather than showing the ID verbatim in the chest name.
+        public string GetDisplayLabel(string value)
+        {
+            string displayName = ItemRegistry.GetDataOrErrorItem(value).DisplayName;
+            return $"{TypeLabel}: {displayName}";
+        }
     }
 
     // Colour is keyed off "color_*" context tags. Multiple matches sort alphabetically by the full
@@ -58,6 +66,38 @@ namespace AutoSorterBuilding.Sorting
 
             return colourTags[0].Substring(TagPrefix.Length);
         }
+        
+        // value is the tag suffix (e.g. "red" or "dark_blue"), title-case each underscore-separated
+        // word and join with spaces -> "dark_blue" becomes "Dark Blue".
+        public string GetDisplayLabel(string value)
+        {
+            string[] words = value.Split('_', StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < words.Length; i++)
+            {
+                words[i] = char.ToUpperInvariant(words[i][0]) + words[i][1..];
+            }
+
+            return $"{TypeLabel}: {string.Join(' ', words)}";
+        }
+    }
+
+    // Geode is keyed off the single "geode" context tag. the tag is either present or it isn't.
+    // The bucket value is the fixed literal "Geode",
+    // Chests Anywhere auto-named chest for it reads as "Geode"
+    internal sealed class GeodeSortKeyExtractor : ISortKeyExtractor
+    {
+        private const string GeodeTag = "geode";
+
+        public string SelectorId => ModConstants.SELECTOR_GEODE_ID;
+        public string TypeLabel => "Geode";
+
+        public string? ExtractKey(Item item)
+        {
+            return item.GetContextTags().Contains(GeodeTag) ? "Geode" : null;
+        }
+        
+        // The value is always the literal "Geode", so the label is just the type label
+        public string GetDisplayLabel(string value) => TypeLabel;
     }
 
     // Quality is a direct switch on Item.Quality. Quality 0 ("no quality") is deliberately treated
@@ -83,6 +123,8 @@ namespace AutoSorterBuilding.Sorting
                 _ => null // 0 (no quality) and 3 (unused in vanilla) both fall through
             };
         }
+        
+        public string GetDisplayLabel(string value) => $"{TypeLabel}: {value}";
     }
 
     // ModID is inferred from an author-prefixed item ID convention (e.g.
@@ -111,5 +153,7 @@ namespace AutoSorterBuilding.Sorting
             Match match = ModIdPattern.Match(item.ItemId);
             return match.Success ? $"{match.Groups[1].Value}.{match.Groups[2].Value}" : null;
         }
+        
+        public string GetDisplayLabel(string value) => $"{TypeLabel}: {value}";
     }
 }

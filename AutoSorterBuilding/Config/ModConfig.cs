@@ -11,5 +11,14 @@ namespace AutoSorterBuilding.Config
         public string Appearance { get; set; } = "Vanilla";
 
         public bool EnableDesaturatedVersion { get; set; } = false;
+        
+        // Selector-priority ranks (1 = tried first). Defaults mirror the previous hardcoded
+        // order in SortKeyExtractorRegistry (Geode, Flavour, Colour, Quality, ModID).
+        // Ties are broken by that same default order, see SortKeyExtractorRegistry.GetPriorityOrder.
+        public int GeodePriority { get; set; } = 1;
+        public int FlavourPriority { get; set; } = 2;
+        public int ColourPriority { get; set; } = 3;
+        public int QualityPriority { get; set; } = 4;
+        public int ModIdPriority { get; set; } = 5;
     }
 }

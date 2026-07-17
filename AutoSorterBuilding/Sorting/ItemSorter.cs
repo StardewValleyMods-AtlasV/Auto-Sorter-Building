@@ -4,6 +4,7 @@ using StardewValley;
 using StardewValley.Buildings;
 using StardewValley.Objects;
 using AutoSorterBuilding.Compat;
+using AutoSorterBuilding.Config;
 
 namespace AutoSorterBuilding.Sorting
 {
@@ -139,7 +140,7 @@ namespace AutoSorterBuilding.Sorting
         // sign bucketed for this specific value".
         private static List<Chest>? ResolveChestList(Dictionary<string, List<Chest>> chests, Item item)
         {
-            foreach (ISortKeyExtractor extractor in SortKeyExtractorRegistry.PriorityOrder)
+            foreach (ISortKeyExtractor extractor in SortKeyExtractorRegistry.GetPriorityOrder(GMCMIntegration.Config))
             {
                 string? value = extractor.ExtractKey(item);
                 if (value is null) continue;
@@ -192,7 +193,11 @@ namespace AutoSorterBuilding.Sorting
                          it's a non-null item anyway for us to assign to the displayedItem variable. */
                         if (sign.displayItem.Value is { } displayedItem)
                         {
-                            string category = GetSignBucketKey(sign, displayedItem);
+                            // category is the raw bucket key used for dictionary lookups (matches what
+                            // ResolveChestList builds during sorting, e.g. "Colour:red") and must stay in
+                            // that exact form. displayLabel is the separate, human-readable string for
+                            // Chests Anywhere (e.g. "Colour: Red")
+                            (string category, string displayLabel) = GetSignBucket(sign, displayedItem);
 
                             if (!chests.TryGetValue(category, out var chestList))
                             {
@@ -209,7 +214,7 @@ namespace AutoSorterBuilding.Sorting
                              this exact Chest instance in our building. */
                             chestList.Add(chest);
 
-                            chestsToName?.Add((chest, category));
+                            chestsToName?.Add((chest, displayLabel));
                         }
                         else
                         {
@@ -244,14 +249,18 @@ namespace AutoSorterBuilding.Sorting
             return chests;
         }
 
-        // Resolves the bucket key a given signed chest should register under. If the sign has a
-        // slot-2 selector assigned and extraction succeeds against the slot-1 displayed item, the
-        // category is ignored entirely and the sign becomes a catch-all for that specific attribute
-        // value (e.g. a Flavour-selector sign showing Blueberry Jam buckets ALL blueberry-flavoured
-        // items, regardless of their category). If there's no selector, or extraction fails against
-        // the displayed item, this falls back to the plain category - the same single fallback
-        // behaviour used everywhere else in this system.
-        private static string GetSignBucketKey(Sign sign, Item displayedItem)
+        // Resolves the bucket key a given signed chest should register under, AND the human-readable
+        // Chests Anywhere display label for it.
+        //
+        // If the sign has a slot-2 selector assigned and extraction succeeds against the slot-1
+        // displayed item, the category is ignored entirely and the sign becomes a catch-all for that
+        // specific attribute value (e.g. a Flavour-selector sign showing Blueberry Jam buckets ALL
+        // blueberry-flavoured items, regardless of their category), the display label then comes from
+        // that extractor's own GetDisplayLabel (e.g. resolving a raw preserved item ID to "Blueberry"
+        // for Flavour, or title-casing a colour tag for Colour). If there's no selector, or extraction
+        // fails against the displayed item, this falls back to the plain category for both the key and
+        // the label, the same single fallback behaviour used everywhere else in this system.
+        private static (string BucketKey, string DisplayLabel) GetSignBucket(Sign sign, Item displayedItem)
         {
             if (sign.modData.TryGetValue(ModConstants.SELECTOR_SLOT_MODDATA_KEY, out string? selectorId) &&
                 SortKeyExtractorRegistry.TryGetExtractor(selectorId, out ISortKeyExtractor? extractor))
@@ -259,11 +268,13 @@ namespace AutoSorterBuilding.Sorting
                 string? value = extractor!.ExtractKey(displayedItem);
                 if (value is not null)
                 {
-                    return $"{extractor.TypeLabel}:{value}";
+                    string bucketKey = $"{extractor.TypeLabel}:{value}";
+                    return (bucketKey, extractor.GetDisplayLabel(value));
                 }
             }
 
-            return ItemCategoryHelper.GetItemCategory(displayedItem);
+            string category = ItemCategoryHelper.GetItemCategory(displayedItem);
+            return (category, category);
         }
 
         // Extracted from TimeChangedHandler so SignSelectorPatch can reuse the same "find my buildings"
