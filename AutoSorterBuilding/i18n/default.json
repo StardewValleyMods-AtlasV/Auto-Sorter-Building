@@ -1,4 +1,9 @@
 {
+        // Function
+        "Config.Function.SectionTitle": "Function",
+        "Config.EnableChestNumbering.Name": "Enable Chest Numbering",
+        "Config.EnableChestNumbering.Tooltip": "Enable number prefixes on chest names with Chests Anywhere",
+        
         // Appearance section title
         "Config.Appearance.SectionTitle": "Appearance",
 
@@ -9,16 +14,16 @@
         // Appearance
         "Config.Appearance.Name": "Appearance",
         "Config.Appearance.Tooltip": "Choose the exterior colour scheme for the building.",
-        "config.Appearance.values.Vanilla": "Vanilla",
-        "config.Appearance.values.Blue": "Blue",
-        "config.Appearance.values.DarkBlue": "Dark Blue",
-        "config.Appearance.values.DarkBrown": "Dark Brown",
-        "config.Appearance.values.DarkRoof": "Dark Roof",
-        "config.Appearance.values.Green": "Green",
-        "config.Appearance.values.LightBrown": "Light Brown",
-        "config.Appearance.values.Pink": "Pink",
-        "config.Appearance.values.Red": "Red",
-        "config.Appearance.values.WhiteRoof": "White Roof",
+        "Config.Appearance.values.Vanilla": "Vanilla",
+        "Config.Appearance.values.Blue": "Blue",
+        "Config.Appearance.values.DarkBlue": "Dark Blue",
+        "Config.Appearance.values.DarkBrown": "Dark Brown",
+        "Config.Appearance.values.DarkRoof": "Dark Roof",
+        "Config.Appearance.values.Green": "Green",
+        "Config.Appearance.values.LightBrown": "Light Brown",
+        "Config.Appearance.values.Pink": "Pink",
+        "Config.Appearance.values.Red": "Red",
+        "Config.Appearance.values.WhiteRoof": "White Roof",
 
         // Desaturated Version
         "Config.EnableDesaturatedVersion.Name": "Enable Desaturated Version",

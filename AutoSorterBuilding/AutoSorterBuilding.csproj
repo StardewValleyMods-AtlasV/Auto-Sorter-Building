@@ -2,10 +2,10 @@
     <PropertyGroup>
         <AssemblyName>AutoSorterBuilding</AssemblyName>
         <RootNamespace>AutoSorterBuilding</RootNamespace>
-        <Version>1.2.0-beta.1</Version>
+        <Version>1.2.1</Version>
         <TargetFramework>net6.0</TargetFramework>
         <LangVersion>Latest</LangVersion>
-        <GamePath>/mnt/Games/SteamLibrary/steamapps/common/Stardew Valley/</GamePath>
+        <GamePath>/mnt/Games/SteamLibrary/steamapps/common/Stardew Valley 1.6.15/</GamePath>
         <GameModsPath>$(GamePath)\ModsDebug</GameModsPath>
         <StartArguments>--mods-path "$(GameModsPath)"</StartArguments>
         <EnableHarmony>true</EnableHarmony>

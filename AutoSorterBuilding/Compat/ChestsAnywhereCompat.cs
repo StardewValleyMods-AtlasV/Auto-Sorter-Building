@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using AutoSorterBuilding.Config;
 using StardewValley.Objects;
 
 namespace AutoSorterBuilding.Compat
@@ -27,6 +28,8 @@ namespace AutoSorterBuilding.Compat
         // Numbers and names every signed chest in the building in english reading order: left to right, top to bottom
         public static void NameChestsInReadingOrder(List<(Chest Chest, string Category)> chestsToName)
         {
+            bool numberingEnabled = GMCMIntegration.Config.EnableChestNumbering;
+
             var orderedChests = chestsToName
                 .OrderBy(entry => entry.Chest.TileLocation.Y)
                 .ThenBy(entry => entry.Chest.TileLocation.X);
@@ -34,7 +37,8 @@ namespace AutoSorterBuilding.Compat
             int index = 1;
             foreach (var (chest, category) in orderedChests)
             {
-                UpdateChestName(chest, $"{index}. {category}");
+                string name = numberingEnabled ? $"{index}. {category}" : category;
+                UpdateChestName(chest, name);
                 index++;
             }
         }

@@ -46,6 +46,34 @@ namespace AutoSorterBuilding.Config
 
             configMenu.AddSectionTitle(
                 mod: manifest,
+                text: () => ModEntry.Translation.Get("Config.Function.SectionTitle")
+            );
+
+            configMenu.AddBoolOption(
+                mod: manifest,
+                getValue: () => Config.EnableChestNumbering,
+                setValue: value => Config.EnableChestNumbering = value,
+                name: () => ModEntry.Translation.Get("Config.EnableChestNumbering.Name"),
+                tooltip: () => ModEntry.Translation.Get("Config.EnableChestNumbering.Tooltip"),
+                fieldId: "EnableChestNumbering"
+            );
+
+            configMenu.AddSectionTitle(
+                mod: manifest,
+                text: () => ModEntry.Translation.Get("Config.Appearance.SectionTitle")
+            );
+
+            configMenu.AddBoolOption(
+                mod: manifest,
+                getValue: () => Config.EnableSeasonalVariants,
+                setValue: value => Config.EnableSeasonalVariants = value,
+                name: () => ModEntry.Translation.Get("Config.EnableSeasonalVariants.Name"),
+                tooltip: () => ModEntry.Translation.Get("Config.EnableSeasonalVariants.Tooltip"),
+                fieldId: "EnableSeasonalVariants"
+            );
+
+            configMenu.AddSectionTitle(
+                mod: manifest,
                 text: () => ModEntry.Translation.Get("Config.Appearance.SectionTitle")
             );
 

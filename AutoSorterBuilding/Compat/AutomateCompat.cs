@@ -34,7 +34,7 @@ namespace AutoSorterBuilding.Compat
             try
             {
                 Building building = Traverse.Create(__instance).Property("Machine").GetValue<Building>();
-                if (building?.buildingType.Value is not ModConstants.BUILDING_ID)
+                if (!ModConstants.IsAutoSorterBuildingType(building?.buildingType.Value))
                     return true;
 
                 Chest inputChest = building.GetBuildingChest(ModConstants.INPUT_CHEST_ID);
@@ -98,8 +98,16 @@ namespace AutoSorterBuilding.Compat
             {
                 if (slots.Count <= i)
                 {
-                    Item taken = tracker.Method("Take", count).GetValue<Item>();
-                    slots.Add(taken);
+                    // Take() internally calls Reduce() (which removes the item from its source
+                    // inventory) but returns a *clone* made via Item.getOne(), which does not
+                    // preserve inner state like a fishing rod's bait/tackle, an Object's
+                    // heldObject, or a mod's custom inventory fields. Grab the real, original
+                    // Item reference before Take() runs, then restore its stack size and store
+                    // that instead of the lossy clone so nothing gets wiped.
+                    Item original = tracker.Field("Item").GetValue<Item>();
+                    tracker.Method("Take", count).GetValue<Item>();
+                    original.Stack = count;
+                    slots.Add(original);
                     count = 0;
                 }
                 else

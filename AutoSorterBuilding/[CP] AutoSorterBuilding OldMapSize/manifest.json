@@ -1,0 +1,19 @@
+{
+  "Name": "[CP] AutoSorterBuilding OldMapSize",
+  "Author": "AtlasV",
+  "Version": "1.0.0",
+  "Description": "A small content pack to make the building use the larger map size",
+  "UniqueID": "AtlasV.AutoSorterBuildingOldMapSize",
+  "MinimumApiVersion": "4.2.0",
+  "UpdateKeys": [
+    "Nexus:???"
+  ],
+  "Dependencies": [
+    {
+      "UniqueID": "AtlasV.AutoSorterBuildingCore"
+    }
+  ],
+  "ContentPackFor": {
+    "UniqueID": "Pathoschild.ContentPatcher"
+  }
+}

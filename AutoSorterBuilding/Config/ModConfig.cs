@@ -4,6 +4,10 @@ namespace AutoSorterBuilding.Config
     // Field names/casing intentionally mirror the old CP ConfigSchema keys.
     internal sealed class ModConfig
     {
+        // When enabled, Chests Anywhere names get a "1. ", "2. " etc. prefix based on reading order.
+        // When disabled, the name is just the plain category/label with no numbering.
+        public bool EnableChestNumbering { get; set; } = true;
+
         public bool EnableSeasonalVariants { get; set; } = true;
 
         // One of: Vanilla, Blue, DarkBlue, DarkBrown, DarkRoof, Green, LightBrown, Pink, Red, WhiteRoof
