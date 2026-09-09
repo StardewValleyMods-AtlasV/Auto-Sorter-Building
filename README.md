@@ -1,6 +1,7 @@
 # Auto-Sorter Building
 
-Main Source: https://git.atlasv.info/Stardew-Valley-Mods/Auto-Sorter-Building
+Main Source: [git.atlasv.info](https://git.atlasv.info/Stardew-Valley-Mods/Auto-Sorter-Building)
+
 Mirrors:
 - [GitHub](https://github.com/StardewValleyMods-AtlasV/Auto-Sorter-Building)
 
