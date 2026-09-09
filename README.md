@@ -1,5 +1,9 @@
 # Auto-Sorter Building
 
+Main Source: https://git.atlasv.info/Stardew-Valley-Mods/Auto-Sorter-Building
+Mirrors:
+- [GitHub](https://github.com/StardewValleyMods-AtlasV/Auto-Sorter-Building)
+
 Manually sorting your items always takes so much time, add in a bunch of mods that add new items and it takes even longer!
 
 This mod can help! It adds a new building that can be built by Robin that
