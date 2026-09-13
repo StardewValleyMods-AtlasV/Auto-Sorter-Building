@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using HarmonyLib;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -24,6 +25,8 @@ namespace AutoSorterBuilding.Patches
         // Nulled on SaveLoaded/ReturnedToTitle since GameLocation instances aren't guaranteed
         // stable across a save load
         private static HashSet<GameLocation>? _autoSorterInteriors;
+        private static readonly Dictionary<string, Item?> FilterSampleCache = new(StringComparer.Ordinal);
+        private const uint FilterCycleIntervalTicks = 120;
 
         public static void Register(Harmony harmony, IModHelper helper)
         {
@@ -71,65 +74,187 @@ namespace AutoSorterBuilding.Patches
             Item? currentItem = who.CurrentItem;
             if (currentItem is null) return true;
 
-            // Not a selector item -> vanilla slot-1 behaviour, unchanged.
-            if (!SelectorItems.TryGetTypeLabel(currentItem.ItemId, out string? typeLabel)) return true;
-
-            // Selectors only ever target slot 2. Slot 1 empty -> fall through so the documented
-            // "empty slot 1 -> set slot 1" behaviour still applies even when holding a selector.
+            // Custom interactions require an existing primary item. An empty sign retains vanilla
+            // behavior so the held item becomes that primary item first.
             if (__instance.displayItem.Value is null) return true;
 
-            // who.currentLocation - used throughout decompiled game code but its
-            // declaration wasn't found in source.
             GameLocation? location = who.currentLocation;
-            if (location is null || !IsAutoSorterInterior(location))
+            if (location is null || !IsAutoSorterInterior(location)) return true;
+
+            if (SelectorItems.TryGetTypeLabel(currentItem.ItemId, out _))
             {
-                ModEntry.ModMonitor.Log(
-                    $"Selector item {currentItem.ItemId} used on a Sign outside an AutoSorterBuilding interior (or location lookup failed) - falling back to vanilla Sign behaviour.",
-                    LogLevel.Trace);
-                return true;
+                // Re-interacting with a selector replaces slot 2, matching vanilla slot-1 behavior.
+                __instance.modData[ModConstants.SELECTOR_SLOT_MODDATA_KEY] = currentItem.ItemId;
+                Game1.playSound("coin");
+                __result = true;
+                return false;
             }
 
-            // Overwrite is intentional, re-interacting with a selector in hand always replaces
-            // whatever was in slot 2, same as vanilla slot 1 behaviour.
-            __instance.modData[ModConstants.SELECTOR_SLOT_MODDATA_KEY] = currentItem.ItemId;
-            Game1.playSound("coin");
-            __result = true;
-            return false;
+            if (IsAdditionalFilterModifierDown())
+            {
+                IReadOnlyList<ResolvedItemCategory> categories = ItemCategoryRegistry.GetCategories(currentItem);
+                IReadOnlyList<ResolvedItemCategory> primaryCategories =
+                    ItemCategoryRegistry.GetCategories(__instance.displayItem.Value);
+
+                if (HaveSameCategoryKeys(categories, primaryCategories))
+                {
+                    Game1.playSound("cancel");
+                    Game1.addHUDMessage(new HUDMessage(ModEntry.Translation.Get("filter.primary-exists")));
+                }
+                else
+                {
+                    bool added = SignFilterStorage.ToggleAdditionalClause(
+                        __instance,
+                        categories,
+                        currentItem.QualifiedItemId);
+                    string label = string.Join(" + ", categories.Select(category => category.DisplayName));
+                    Game1.playSound(added ? "coin" : "trashcan");
+                    Game1.addHUDMessage(new HUDMessage(ModEntry.Translation.Get(
+                        added ? "filter.added" : "filter.removed",
+                        new { filter = label })));
+                }
+
+                __result = true;
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool IsAdditionalFilterModifierDown()
+        {
+            return ModEntry.Input.IsDown(SButton.LeftShift) || ModEntry.Input.IsDown(SButton.RightShift);
+        }
+
+        private static bool HaveSameCategoryKeys(
+            IReadOnlyList<ResolvedItemCategory> left,
+            IReadOnlyList<ResolvedItemCategory> right)
+        {
+            var leftKeys = left.Select(category => category.Key).ToHashSet(StringComparer.Ordinal);
+            return leftKeys.SetEquals(right.Select(category => category.Key));
         }
 
         private static void DrawPostfix(Sign __instance, SpriteBatch spriteBatch, int x, int y, float alpha)
         {
-            // Presence of this modData key is the sole "belongs to building" signal,
-            // since draw() has no location parameter to check against the interior cache, only
-            // this prefix above ever writes this key (or at least should).
-            if (!__instance.modData.TryGetValue(ModConstants.SELECTOR_SLOT_MODDATA_KEY, out string? selectorId)) return;
-            if (!SelectorItems.TryGetTypeLabel(selectorId, out string? typeLabel)) return;
+            float layerDepth = Math.Max(0f, (float)((y + 1) * 64 - 24) / 10000f) +
+                (float)x * 1E-05f + 3E-05f;
 
-            // Bottom-right corner of the sign tile, drawn at 1.75x scale (16x16 source -> 32x32 on screen).
-            // The sign's own art is drawn one tile above y (see base draw()'s y*64-64 offsets),
-            // so "bottom right" here means the bottom-right of that same tile:
-            // x*64 + 59 - badge width, y*64 - badge height - vertical offset.
-            const float scale = 1.75f;
-            const int sourceSize = 16; // selector textures are 16x16 per SelectorItems.cs
-            const int verticalOffset = 22;
-            float badgePixelSize = sourceSize * scale;
+            int additionalCount = SignFilterStorage.GetAdditionalClauseCount(__instance);
+            if (additionalCount > 0)
+            {
+                DrawCyclingFilterSample(__instance, spriteBatch, x, y, alpha, layerDepth, additionalCount);
+            }
 
-            Texture2D badgeTexture = Game1.content.Load<Texture2D>($"Mods/{ModConstants.CP_UNIQUE_ID}/SelectorItems/{typeLabel}");
-            Vector2 position = Game1.GlobalToLocal(Game1.viewport, new Vector2(
-                x * 64 + 59 - badgePixelSize,
-                y * 64 - badgePixelSize + verticalOffset
-            ));
+            if (__instance.modData.TryGetValue(ModConstants.SELECTOR_SLOT_MODDATA_KEY, out string? selectorId) &&
+                SelectorItems.TryGetTypeLabel(selectorId, out string? typeLabel))
+            {
+                const float selectorScale = 1.75f;
+                const int sourceSize = 16;
+                const int verticalOffset = 22;
+                float badgePixelSize = sourceSize * selectorScale;
+                Texture2D badgeTexture = Game1.content.Load<Texture2D>(
+                    $"Mods/{ModConstants.CP_UNIQUE_ID}/SelectorItems/{typeLabel}");
+                Vector2 selectorPosition = Game1.GlobalToLocal(Game1.viewport, new Vector2(
+                    x * 64 + 59 - badgePixelSize,
+                    y * 64 - badgePixelSize + verticalOffset));
+
+                spriteBatch.Draw(
+                    badgeTexture,
+                    selectorPosition,
+                    null,
+                    Color.White * alpha,
+                    0f,
+                    Vector2.Zero,
+                    selectorScale,
+                    SpriteEffects.None,
+                    layerDepth);
+            }
+
+            if (additionalCount > 0)
+            {
+                const float textScale = 0.65f;
+                string text = $"+{additionalCount}";
+                Vector2 textPosition = Game1.GlobalToLocal(Game1.viewport, new Vector2(x * 64 + 4, y * 64 - 53));
+                spriteBatch.DrawString(
+                    Game1.smallFont,
+                    text,
+                    textPosition + new Vector2(2f, 2f),
+                    Color.Black * alpha,
+                    0f,
+                    Vector2.Zero,
+                    textScale,
+                    SpriteEffects.None,
+                    layerDepth);
+                spriteBatch.DrawString(
+                    Game1.smallFont,
+                    text,
+                    textPosition,
+                    Color.White * alpha,
+                    0f,
+                    Vector2.Zero,
+                    textScale,
+                    SpriteEffects.None,
+                    layerDepth + 0.00001f);
+            }
+        }
+
+        private static void DrawCyclingFilterSample(
+            Sign sign,
+            SpriteBatch spriteBatch,
+            int x,
+            int y,
+            float alpha,
+            float layerDepth,
+            int additionalCount)
+        {
+            // Index zero leaves the primary item drawn by the game visible. Later indices overlay
+            // one Shift-added sample for two seconds each before returning to the primary item.
+            int cycleIndex = (int)((Game1.ticks / FilterCycleIntervalTicks) % (uint)(additionalCount + 1));
+            if (cycleIndex == 0)
+            {
+                return;
+            }
+
+            string? sampleItemId = SignFilterStorage.GetAdditionalSampleItemId(sign, cycleIndex - 1);
+            if (sampleItemId is null)
+            {
+                return;
+            }
+
+            if (!FilterSampleCache.TryGetValue(sampleItemId, out Item? sampleItem))
+            {
+                sampleItem = ItemRegistry.Create(sampleItemId, allowNull: true);
+                FilterSampleCache[sampleItemId] = sampleItem;
+            }
+
+            if (sampleItem is null)
+            {
+                return;
+            }
+
+            Vector2 itemPosition = Game1.GlobalToLocal(
+                Game1.viewport,
+                new Vector2(x * 64 + 8, y * 64 - 56));
+
+            // The backing plate hides the primary icon beneath transparent parts of the cycling icon.
             spriteBatch.Draw(
-                badgeTexture,
-                position,
+                Game1.staminaRect,
+                new Rectangle((int)itemPosition.X, (int)itemPosition.Y, 48, 48),
                 null,
-                Color.White * alpha,
+                Color.Black * 0.72f * alpha,
                 0f,
                 Vector2.Zero,
-                scale,
                 SpriteEffects.None,
-                Math.Max(0f, (float)((y + 1) * 64 - 24) / 10000f) + (float)x * 1E-05f + 3E-05f
-            );
+                layerDepth);
+            sampleItem.drawInMenu(
+                spriteBatch,
+                itemPosition,
+                0.75f,
+                alpha,
+                layerDepth + 0.000002f,
+                StackDrawType.Hide,
+                Color.White,
+                drawShadow: false);
         }
     }
 }

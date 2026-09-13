@@ -60,6 +60,11 @@
         // Uncatagorised category chest name
         "uncategorized-chest-name": "Uncategorized",
 
+        // Additional sign filters
+        "filter.added": "Added OR filter: {{filter}}",
+        "filter.removed": "Removed OR filter: {{filter}}",
+        "filter.primary-exists": "That filter is already represented by the sign's displayed item.",
+
         // Selector Items
         "selector.colour.name": "Selector (Colour)",
         "selector.colour.description": "This selector allows the AutoSorter Building to sort by Colour when applied second to a sign",

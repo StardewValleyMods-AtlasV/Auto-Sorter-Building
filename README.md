@@ -25,6 +25,21 @@ To use it, this is all you need to do :
 
 The building can support any number of chests with signs inside!
 
+## Multiple category filters
+
+To add an `OR` filter without using more floor space, hold another sample item and
+Shift-interact with the existing sign. Repeat for each alternative. Shift-interact
+with an already-added category again to remove it. A small `+N` badge shows the
+number of saved alternatives, and breaking the sign clears them. For example, a
+sign displaying a sword with dagger and club added this way routes `Sword OR Dagger
+OR Club` into the same chest. The sign cycles through its primary and Shift-added
+sample items every two seconds so the complete filter remains visible in-game.
+
+If several matching chests have equally specific filters, they are filled from top
+to bottom, then left to right. Empty-sign catch-all chests are tried last.
+
+Selector signs keep their configured priority over category filters.
+
 
 There are also some fall back features so that if it doesn't find a chest that matches, your items will still be safe!
 

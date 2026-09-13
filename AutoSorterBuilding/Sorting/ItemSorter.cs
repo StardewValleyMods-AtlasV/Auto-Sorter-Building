@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using StardewValley;
@@ -10,277 +11,294 @@ namespace AutoSorterBuilding.Sorting
 {
     internal static class ItemSorter
     {
-        // isManualSort is true only when this was triggered by the player closing the input chest's menu
-        // (see Patches.BuildingChestActionPatch.Postfix), and false when triggered by the OnTimeChanged
-        // timer.
+        // Every category in one clause must match (AND). A chest may contain several clauses,
+        // created from the sign's primary item and its saved alternatives, and any clause may
+        // match (OR).
+        private sealed class CategoryClause
+        {
+            public IReadOnlyList<ResolvedItemCategory> Categories { get; }
+
+            public CategoryClause(IReadOnlyList<ResolvedItemCategory> categories)
+            {
+                Categories = categories;
+            }
+        }
+
+        private sealed class SelectorClause
+        {
+            public ISortKeyExtractor Extractor { get; }
+            public string Value { get; }
+
+            public SelectorClause(ISortKeyExtractor extractor, string value)
+            {
+                Extractor = extractor;
+                Value = value;
+            }
+        }
+
+        private sealed class ChestFilter
+        {
+            // Keep all routing information together per chest. This prevents the same chest from
+            // being represented in several category buckets and accidentally tried more than once.
+            public Chest Chest { get; }
+            public List<CategoryClause> CategoryClauses { get; } = new();
+            public List<SelectorClause> SelectorClauses { get; } = new();
+            public List<string> DisplayLabels { get; } = new();
+            public bool IsCatchAll { get; set; }
+
+            public ChestFilter(Chest chest)
+            {
+                Chest = chest;
+            }
+        }
+
         public static void SortItems(Building building, bool isManualSort = false)
         {
-            /* Not entirely necessary to log this, but may help with debugging if anything ever goes wrong
-             to know which specific interior it was. The monitor logs to the Trace LogLevel by default, so
-             it won't show in the console, but it'll appear in the log file when uploaded somewhere. */
             ModEntry.ModMonitor.Log($"Sorting items into AutoSorter with name {building.GetIndoorsName()}");
 
-            // This will give is a dictionary where the keys are item categories (or, for signs with a
-            // slot-2 selector assigned, namespaced attribute keys like "Colour:red") and the values are
-            // lists of chests we found inside this specific building instance. collecting them all now so
-            // that theres no need to search the entire interior for every item in the input chest.
-            Dictionary<string, List<Chest>> chests = CollectChests(building, isManualSort);
-
-            /* If we didn't find any chests, or somehow all of our lists of chests are empty, then we can't sort anything,
-             so we return early. */
-            if (chests.Count <= 0 || chests.All(pair => pair.Value.Count <= 0))
+            // Resolve signs once per sorting pass rather than searching the building again for
+            // every item placed in the input chest.
+            List<ChestFilter> filters = CollectChestFilters(building, isManualSort);
+            if (filters.Count == 0)
             {
                 return;
             }
 
-            /* This will grab all the chests that had empty signs above them, which we may need for both
-             items that couldn't be matched to a specific chest and items that could be matched but their
-             chest is full. If we have no catch-all chests, this list won't exist, so we need to remember
-             to check for null where appropriate. */
-            List<Chest>? EmptyCategoryChests = chests.GetValueOrDefault(ModConstants.EMPTY_CATEGORY_ID);
+            Chest inputChest = building.GetBuildingChest(ModConstants.INPUT_CHEST_ID);
 
-            /* This will be the input chest as defined in our Content Patcher pack. */
-            Chest toSort = building.GetBuildingChest(ModConstants.INPUT_CHEST_ID);
+            // Work from a snapshot and temporarily empty the input chest. Any stack which can't be
+            // completely placed is added back below, so a failed or partial match never loses items.
+            List<Item> itemsToSort = inputChest.GetItemsForPlayer().ToList();
+            inputChest.GetItemsForPlayer().Clear();
 
-            /* We'll need to clear our input chest, so we'll need to make a copy of the items inside it.
-             When we call ToList() here on the IInventory instance returned by GetItemsForPlayer, it
-             creates a new List for us, but both itemsToSort and the original IInventory will point to
-             the same objects in memory. Basically, the List itself and the items inside the list are
-             different things, where the List tells the computer where to look for the items, but the items
-             never move. */
-            List<Item> itemsToSort = toSort.GetItemsForPlayer().ToList();
-
-            /* Therefore, when we clear the IInventory now, we're only clearing its knowledge of where
-             the items are in memory. The GetItemsForPlayer IInventory will no longer have any clue
-             where the items are, so it will be an empty list, but our other list we just made, itemsToSort,
-             still knows where the original items are in memory, so we can still use them. We haven't
-             copied the items, we only made two lists that both know where the same items are and then
-             made one of those lists forget about them. */
-            toSort.GetItemsForPlayer().Clear();
-
-            /* This leftoverItems list will just help us in our loop coming up and is entirely separate. */
-            List<Item> leftoverItems = new List<Item>();
-
-            foreach (var item in itemsToSort)
+            var leftoverItems = new List<Item>();
+            foreach (Item item in itemsToSort)
             {
-                // Walks the default selector priority order (Flavour, Colour, Quality, ModID), then
-                // falls back to plain category. Extraction failure (item doesn't have the attribute) and
-                // lookup miss (item has the attribute, but no sign in this building is bucketed for that
-                // specific value) are treated identically - both just move on to the next candidate. */
-                List<Chest>? chestList = ResolveChestList(chests, item);
+                List<Chest> destinations = ResolveDestinations(filters, item);
+                Item? remaining = item;
 
-                if (chestList is null)
+                foreach (Chest chest in destinations)
                 {
-                    /* ...but we DO have catch-all chests, then we'll just use those. */
-                    if (EmptyCategoryChests is not null)
+                    // A chest may have become locked after filters were collected, particularly in
+                    // multiplayer, so check its mutex again immediately before changing its items.
+                    if (chest.GetMutex().IsLocked())
                     {
-                        chestList = EmptyCategoryChests;
-                    }
-                    /* Otherwise, we have nowhere to put this item, so we mark it as leftover and continue
-                     to the next item in our input chest. */
-                    else
-                    {
-                        leftoverItems.Add(item);
                         continue;
                     }
+
+                    remaining = chest.addItem(remaining);
+                    if (remaining is null)
+                    {
+                        break;
+                    }
                 }
-                else if (EmptyCategoryChests is not null)
+
+                if (remaining is not null)
                 {
-                    /* If we entered this block, it means we DID find at least one chest that matches the
-                     category, however we still want to use the catch-all chests for oveflow purposes. But
-                     instead of assigning the empty category list to our chestList variable, we append
-                     its contents to the end of our exact-match list. */
-                    chestList.AddRange(EmptyCategoryChests);
+                    leftoverItems.Add(remaining);
                 }
-
-                /* Create a new Item instance to hold our leftover item, if any. The "item" variable in this loop
-                 can't be changed mid-loop, so we have to create this new Item reference. We want to create it
-                 outside the loop up ahead because we want to know if we have any leftover after we've checked
-                 every chest, and not reset it every time we look at a new chest. */
-                Item? leftover = null;
-
-                foreach (var chest in chestList)
-                {
-                    /* If the mutex is locked, that means another player is currently using the chest we're
-                     looking at. We don't want to touch that chest while that's happpening, that can lead
-                     to strange multiplayer issues like desync or item duplication. We have to skip this
-                     chest in that case. */
-                    if (chest.GetMutex().IsLocked()) continue;
-
-                    /* addItem will return null if the chest could successfully hold the entire stack of
-                     the item we're trying to add to it. If not, though (for example, if the chest could
-                     only hold 500 wood but we tried to add a stack of 999), then it will return what
-                     was leftover. Continuing that example, that means our leftover variable here would
-                     become a Wood Item with a stack size of 499. */
-                    leftover = chest.addItem(item);
-
-                    /* If the leftover IS null though, it means we're done with this input item, so no
-                     need to check the other chests. */
-                    if (leftover is null) break;
-                }
-
-                /* If we've looked at every chest with a matching category and we still have a leftover item,
-                 then that means this AutoSorter building cannot hold this input. Either because there wasn't
-                 enough space or we just didn't have a chest with a matching category. So, it gets added
-                 to our list of leftovers. Continuing our earlier example, we'd have our 499 stack of wood
-                 added to our list here. */
-                if (leftover is not null) leftoverItems.Add(leftover);
             }
 
-            /* After we've gone through every item in the input chest and ended up here, our leftoverItems list
-             will be full of the stuff we couldn't fit in the AutoSorter for one reason or another. So we add
-             them all back to the AutoSorter's input chest again so the player can retrieve them. */
-            toSort.GetItemsForPlayer().AddRange(leftoverItems);
+            inputChest.GetItemsForPlayer().AddRange(leftoverItems);
         }
 
-        // Tries each registered extractor in default priority order (Flavour, Colour, Quality, ModID),
-        // using the first namespaced key ("{TypeLabel}:{value}") that has a registered bucket. Falls
-        // back to the plain category key if none of the selector dimensions produced a hit - this is
-        // the single fallback path for both "item doesn't have this attribute" and "building has no
-        // sign bucketed for this specific value".
-        private static List<Chest>? ResolveChestList(Dictionary<string, List<Chest>> chests, Item item)
+        private static List<Chest> ResolveDestinations(IReadOnlyList<ChestFilter> filters, Item item)
         {
+            // Catch-all destinations are appended only after all specific matches. CombineDistinct
+            // below also ensures a catch-all chest with saved clauses is not attempted twice.
+            List<ChestFilter> catchAllFilters = filters.Where(filter => filter.IsCatchAll).ToList();
+
+            // Once a selector type has a matching chest, lower-priority selectors and categories aren't used.
             foreach (ISortKeyExtractor extractor in SortKeyExtractorRegistry.GetPriorityOrder(GMCMIntegration.Config))
             {
                 string? value = extractor.ExtractKey(item);
-                if (value is null) continue;
-
-                if (chests.TryGetValue($"{extractor.TypeLabel}:{value}", out List<Chest>? chestList))
+                if (value is null)
                 {
-                    return chestList;
+                    continue;
+                }
+
+                List<ChestFilter> selectorMatches = filters
+                    .Where(filter => filter.SelectorClauses.Any(clause =>
+                        clause.Extractor.SelectorId == extractor.SelectorId &&
+                        string.Equals(clause.Value, value, StringComparison.Ordinal)))
+                    .ToList();
+
+                if (selectorMatches.Count > 0)
+                {
+                    return CombineDistinct(selectorMatches, catchAllFilters);
                 }
             }
 
-            return chests.GetValueOrDefault(ItemCategoryHelper.GetItemCategory(item));
+            IReadOnlyList<ResolvedItemCategory> itemCategories = ItemCategoryRegistry.GetCategories(item);
+            var itemCategoryKeys = new HashSet<string>(
+                itemCategories.Select(category => category.Key),
+                StringComparer.Ordinal);
+
+            // A clause matches through set containment: the incoming item must contain every
+            // category required by that clause. If several clauses on one chest match, only its
+            // largest matching clause determines that chest's specificity.
+            // OrderByDescending is stable, so ties retain the reading order established during collection.
+            List<ChestFilter> categoryMatches = filters
+                .Select(filter => new
+                {
+                    Filter = filter,
+                    Specificity = filter.CategoryClauses
+                        .Where(clause => clause.Categories.All(category => itemCategoryKeys.Contains(category.Key)))
+                        .Select(clause => clause.Categories.Count)
+                        .DefaultIfEmpty(0)
+                        .Max()
+                })
+                .Where(match => match.Specificity > 0)
+                .OrderByDescending(match => match.Specificity)
+                .Select(match => match.Filter)
+                .ToList();
+
+            return CombineDistinct(categoryMatches, catchAllFilters);
         }
 
-        private static Dictionary<string, List<Chest>> CollectChests(Building building, bool updateChestNames)
+        private static List<Chest> CombineDistinct(
+            IEnumerable<ChestFilter> specificFilters,
+            IEnumerable<ChestFilter> catchAllFilters)
         {
-            Dictionary<string, List<Chest>> chests = new();
+            var destinations = new List<Chest>();
 
-            // Only populated when going to rename chests on pass. Holds every signed
-            // chest we find (including catch-all ones) paired with the category label its sign resolves
-            // to. can't name chests as found anymore, since Utility.ForEachItemIn doesn't
-            // guarantee it visits them in any particular order
+            // Reference equality is intentional: two different placed chests may contain identical
+            // data, while repeated matches for the same placed Chest object must collapse to one try.
+            var seen = new HashSet<Chest>(ReferenceEqualityComparer.Instance);
+
+            foreach (ChestFilter filter in specificFilters.Concat(catchAllFilters))
+            {
+                if (seen.Add(filter.Chest))
+                {
+                    destinations.Add(filter.Chest);
+                }
+            }
+
+            return destinations;
+        }
+
+        private static List<ChestFilter> CollectChestFilters(Building building, bool updateChestNames)
+        {
+            GameLocation interior = building.GetIndoors();
+            var chests = new List<Chest>();
+
+            // Utility.ForEachItemIn doesn't promise tile order, so first gather every currently
+            // available chest and sort the result explicitly below.
+            Utility.ForEachItemIn(interior, item =>
+            {
+                if (item is Chest chest && !chest.GetMutex().IsLocked())
+                {
+                    chests.Add(chest);
+                }
+                return true;
+            });
+
+            chests = chests
+                // Stable top-to-bottom, then left-to-right order controls overflow between equally
+                // specific destinations and optional Chests Anywhere numbering.
+                .OrderBy(chest => chest.TileLocation.Y)
+                .ThenBy(chest => chest.TileLocation.X)
+                .ToList();
+
+            var filters = new List<ChestFilter>();
             List<(Chest Chest, string Category)>? chestsToName = updateChestNames && ChestsAnywhereCompat.IsLoaded
                 ? new List<(Chest, string)>()
                 : null;
 
-            /* This will get the indoor location unique to this specific building instance, no
-             matter how many of this building type the player has built in their world. */
-            GameLocation interior = building.GetIndoors();
-
-            /* This Utility function takes in an action to perform on every item in the interior we
-             give it, the one we just got above. Chests are Objects are Items, so this will find
-             any Chest that is placed inside our building. */
-            Utility.ForEachItemIn(interior, item =>
+            foreach (Chest chest in chests)
             {
-                /* Like above, we want to make sure the chest mutex is not locked. It's technically
-                 not impossible for it to be unlocked here but then locked by the time the rest of
-                 our sorting happens, so we should check in both places. */
-                if (item is Chest chest && !chest.GetMutex().IsLocked())
+                int x = (int)chest.TileLocation.X;
+                int y = (int)chest.TileLocation.Y - 1;
+
+                // Only the sign directly above a chest configures it. Additional OR clauses live
+                // in that sign's modData instead of consuming more tiles with stacked signs.
+                if (interior.getObjectAtTile(x, y) is not Sign sign)
                 {
-                    /* Luckily, the GameLocation class (which is what our interior is) has a function
-                     we can use to get whatever Object is at a specific tile. We found our chest, so now
-                     we check if there is another Object placed directly above it and that the Object is
-                     specifically a Sign class object. */
-                    var itemAbove = interior.getObjectAtTile((int)chest.TileLocation.X, (int)chest.TileLocation.Y - 1); /* -1 because positive Y is down. */
-
-                    if (itemAbove is Sign sign)
-                    {
-                        /* The "is { }" part just makes sure that the displayItem on our Sign is not null.
-                         We just don't know exactly what type it is, but we don't really care as long as
-                         it's a non-null item anyway for us to assign to the displayedItem variable. */
-                        if (sign.displayItem.Value is { } displayedItem)
-                        {
-                            // category is the raw bucket key used for dictionary lookups (matches what
-                            // ResolveChestList builds during sorting, e.g. "Colour:red") and must stay in
-                            // that exact form. displayLabel is the separate, human-readable string for
-                            // Chests Anywhere (e.g. "Colour: Red")
-                            (string category, string displayLabel) = GetSignBucket(sign, displayedItem);
-
-                            if (!chests.TryGetValue(category, out var chestList))
-                            {
-                                /* If TryGetValue returns false here, it means this is the first time
-                                 we've seen an item with this category, so we need to make a new List
-                                 for our dictionary first, because we can't add a chest to a list that
-                                 doesn't exist. */
-                                chestList = new List<Chest>();
-                                chests[category] = chestList;
-                            }
-
-                            /* Chest objects are reference types, so when we add it to the list here, it's
-                             not making a copy of it. It's giving our list an address to know where to find
-                             this exact Chest instance in our building. */
-                            chestList.Add(chest);
-
-                            chestsToName?.Add((chest, displayLabel));
-                        }
-                        else
-                        {
-                            /* If our displayedItem IS null, that means we have a sign, it's just empty. This should
-                             act as a catch-all chest for ANY input, so we can add it to the catch-all category here. */
-                            if (!chests.TryGetValue(ModConstants.EMPTY_CATEGORY_ID, out var chestList))
-                            {
-                                chestList = new List<Chest>();
-                                chests[ModConstants.EMPTY_CATEGORY_ID] = chestList;
-                            }
-
-                            chestList.Add(chest);
-
-                            // Unlike vanilla category names, "Uncategorized" isn't a string pre-localized,
-                            // so this loads from the mods i18n files.
-                            chestsToName?.Add((chest, ModEntry.Translation.Get("uncategorized-chest-name")));
-                        }
-                    }
+                    continue;
                 }
 
-                /* Returning true in the context of this Utility function just means that we're telling it
-                 to keep searching every item in the map. If we returned false, we'd stop searching entirely,
-                 but we want to find EVERY chest in the map, so we need to keep returning true. */
-                return true;
-            });
+                var filter = new ChestFilter(chest);
+                AddSignClause(filter, sign);
+                filters.Add(filter);
+                chestsToName?.Add((chest, string.Join(" OR ", filter.DisplayLabels)));
+            }
 
             if (chestsToName is not null)
             {
                 ChestsAnywhereCompat.NameChestsInReadingOrder(chestsToName);
             }
 
-            return chests;
+            return filters;
         }
 
-        // Resolves the bucket key a given signed chest should register under, AND the human-readable
-        // Chests Anywhere display label for it.
-        //
-        // If the sign has a slot-2 selector assigned and extraction succeeds against the slot-1
-        // displayed item, the category is ignored entirely and the sign becomes a catch-all for that
-        // specific attribute value (e.g. a Flavour-selector sign showing Blueberry Jam buckets ALL
-        // blueberry-flavoured items, regardless of their category), the display label then comes from
-        // that extractor's own GetDisplayLabel (e.g. resolving a raw preserved item ID to "Blueberry"
-        // for Flavour, or title-casing a colour tag for Colour). If there's no selector, or extraction
-        // fails against the displayed item, this falls back to the plain category for both the key and
-        // the label, the same single fallback behaviour used everywhere else in this system.
-        private static (string BucketKey, string DisplayLabel) GetSignBucket(Sign sign, Item displayedItem)
+        private static void AddSignClause(ChestFilter filter, Sign sign)
         {
+            // An empty primary sign marks the chest as catch-all. Stored clauses are still read so
+            // old or externally edited sign data can't hide valid specific destinations.
+            if (sign.displayItem.Value is not { } displayedItem)
+            {
+                filter.IsCatchAll = true;
+                filter.DisplayLabels.Add(ModEntry.Translation.Get("uncategorized-chest-name"));
+                AddStoredClauses(filter, sign);
+                return;
+            }
+
             if (sign.modData.TryGetValue(ModConstants.SELECTOR_SLOT_MODDATA_KEY, out string? selectorId) &&
                 SortKeyExtractorRegistry.TryGetExtractor(selectorId, out ISortKeyExtractor? extractor))
             {
+                // A valid selector changes the primary item from a category sample into a selector
+                // sample. If extraction fails, ordinary category behavior remains the safe fallback.
                 string? value = extractor!.ExtractKey(displayedItem);
                 if (value is not null)
                 {
-                    string bucketKey = $"{extractor.TypeLabel}:{value}";
-                    return (bucketKey, extractor.GetDisplayLabel(value));
+                    filter.SelectorClauses.Add(new SelectorClause(extractor, value));
+                    filter.DisplayLabels.Add(extractor.GetDisplayLabel(value));
+                    AddStoredClauses(filter, sign);
+                    return;
                 }
             }
 
-            string category = ItemCategoryHelper.GetItemCategory(displayedItem);
-            return (category, category);
+            IReadOnlyList<ResolvedItemCategory> categories = ItemCategoryRegistry.GetCategories(displayedItem);
+            if (categories.Count == 1 && categories[0].IsCatchAll)
+            {
+                filter.IsCatchAll = true;
+                filter.DisplayLabels.Add(ModEntry.Translation.Get("uncategorized-chest-name"));
+                AddStoredClauses(filter, sign);
+                return;
+            }
+
+            if (categories.Count > 0)
+            {
+                filter.CategoryClauses.Add(new CategoryClause(categories));
+                filter.DisplayLabels.Add(string.Join(" + ", categories.Select(category => category.DisplayName)));
+            }
+
+            AddStoredClauses(filter, sign);
         }
 
-        // Extracted from TimeChangedHandler so SignSelectorPatch can reuse the same "find my buildings"
-        // logic to build its interior-location cache, rather than duplicating the search.
+        private static void AddStoredClauses(ChestFilter filter, Sign sign)
+        {
+            // Each Shift-added sample is a separate OR alternative. Its categories are stored as a
+            // single clause so the AND relationship within that sample remains intact.
+            foreach (IReadOnlyList<ResolvedItemCategory> categories in SignFilterStorage.GetAdditionalClauses(sign))
+            {
+                if (categories.Count == 1 && categories[0].IsCatchAll)
+                {
+                    filter.IsCatchAll = true;
+                    filter.DisplayLabels.Add(ModEntry.Translation.Get("uncategorized-chest-name"));
+                }
+                else
+                {
+                    filter.CategoryClauses.Add(new CategoryClause(categories));
+                    filter.DisplayLabels.Add(string.Join(" + ", categories.Select(category => category.DisplayName)));
+                }
+            }
+        }
+
         public static IEnumerable<Building> FindAutoSorterBuildings()
         {
+            // Shared by timed sorting and sign interaction checks so both features agree on which
+            // locations are Auto-Sorter interiors.
             foreach (GameLocation location in Game1.locations)
             {
                 foreach (Building building in location.buildings)

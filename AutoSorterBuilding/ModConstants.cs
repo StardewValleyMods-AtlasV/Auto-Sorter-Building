@@ -41,6 +41,11 @@ namespace AutoSorterBuilding
         // signal in draw() that a Sign belongs to an AutoSorterBuilding, since draw() has no location
         // parameter to check against the interior cache directly.
         public const string SELECTOR_SLOT_MODDATA_KEY = $"{CP_UNIQUE_ID}_SelectorSlot";
+
+        // JSON-serialized category clauses added to a sign through Shift-interaction. Each stored
+        // clause is an OR alternative to the sign's normal displayed item.
+        public const string ADDITIONAL_FILTERS_MODDATA_KEY = $"{CP_UNIQUE_ID}_AdditionalFilters";
+        public const string ADDITIONAL_FILTER_COUNT_MODDATA_KEY = $"{CP_UNIQUE_ID}_AdditionalFilterCount";
         
         // All building tier IDs, used anywhere a check like "is this an AutoSorterBuilding, regardless
         // of which upgrade tier it currently is" is needed. When a 4th tier is ever added, this is the

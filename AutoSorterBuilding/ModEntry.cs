@@ -13,11 +13,13 @@ namespace AutoSorterBuilding
         internal static IMonitor ModMonitor { get; private set; } = null!;
         internal static Harmony Harmony { get; private set; } = null!;
         internal static ITranslationHelper Translation { get; private set; } = null!;
+        internal static IInputHelper Input { get; private set; } = null!;
 
         public override void Entry(IModHelper helper)
         {
             ModMonitor = Monitor;
             Translation = helper.Translation;
+            Input = helper.Input;
             Harmony = new Harmony(ModManifest.UniqueID);
 
             // Just a modData read/write, so no Harmony needed

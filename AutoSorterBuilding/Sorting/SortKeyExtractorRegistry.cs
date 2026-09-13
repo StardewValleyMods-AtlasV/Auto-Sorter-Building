@@ -28,7 +28,7 @@ namespace AutoSorterBuilding.Sorting
         private static readonly Dictionary<string, ISortKeyExtractor> _bySelectorId =
             _defaultOrder.ToDictionary(e => e.SelectorId);
 
-        // Used by ItemSorter.CollectChests to resolve a sign's slot-2 modData value to an
+        // Used while collecting chest filters to resolve a sign's slot-2 modData value to an
         // extractor for building that sign's bucket key. Selector-to-extractor lookup is
         // unaffected by priority order, so this stays as-is.
         public static bool TryGetExtractor(string selectorId, out ISortKeyExtractor? extractor) =>
