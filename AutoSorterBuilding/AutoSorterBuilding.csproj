@@ -13,7 +13,7 @@
         <EnableModZip>true</EnableModZip>
         <ModFolderName>AutoSorterBuilding</ModFolderName>
         <Title>AutoSorterBuildingCore</Title>
-        <Authors>Spiderbuttons</Authors>
+        <Authors>AtlasV1224</Authors>
         <Nullable>enable</Nullable>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
