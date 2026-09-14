@@ -25,6 +25,10 @@ namespace AutoSorterBuilding
         // Automate's unique mod ID, used to gate the compat patch on whether it's installed.
         public const string AUTOMATE_MOD_ID = "Pathoschild.Automate";
 
+        // Calcifer's documented Data/Objects CustomFields key. Reading the data field directly lets
+        // an item retain both this custom category and its underlying vanilla category without a DLL reference.
+        public const string CALCIFER_CATEGORY_CUSTOM_FIELD = "sophie.Calcifer/Category";
+
         // Sign slot-2 "selector" item IDs.
         public const string SELECTOR_COLOUR_ID = $"{CP_UNIQUE_ID}_Selector_Colour";
         public const string SELECTOR_QUALITY_ID = $"{CP_UNIQUE_ID}_Selector_Quality";

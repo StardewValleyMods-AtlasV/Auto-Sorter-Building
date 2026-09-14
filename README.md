@@ -27,6 +27,14 @@ The building can support any number of chests with signs inside!
 
 ## Multiple category filters
 
+Objects using [Calcifer's documented custom-category field](https://github.com/sophiesalacia/StardewMods/blob/main/Calcifer/README.md#custom-categories),
+`sophie.Calcifer/Category`, keep
+both that custom category and their underlying vanilla category for sorting. Those
+categories form an `AND` filter on a sign: for example, an object categorized as
+`Junk Food` by Calcifer with the vanilla `Cooking` category creates `Junk Food +
+Cooking`. That more-specific chest is tried before a chest configured only for
+`Cooking`. Calcifer remains optional and its DLL is not referenced or redistributed.
+
 To add an `OR` filter without using more floor space, hold another sample item and
 Shift-interact with the existing sign. Repeat for each alternative. Shift-interact
 with an already-added category again to remove it. A small `+N` badge shows the
@@ -55,6 +63,7 @@ There are also some fall back features so that if it doesn't find a chest that m
 Credits:
 Spiderbuttons, for making the original core of the mod, which the current version is mofified from.
 NaiDuBao, for making 19 extra colour options and the seasonal variants.
+sophiesalacia, for documenting Calcifer's custom-category data convention.
 
 Requirements;
 This mod REQUIRES Content Patcher and SMAPI

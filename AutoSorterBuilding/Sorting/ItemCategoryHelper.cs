@@ -38,6 +38,24 @@ namespace AutoSorterBuilding.Sorting
             return categoryName;
         }
 
+        // Resolves the underlying game category without calling the virtual getCategoryName(). This
+        // is needed when Calcifer replaces that virtual result but the sorter wants to retain both
+        // the custom label and the original category as separate members of one AND clause.
+        public static string GetVanillaItemCategory(Item item)
+        {
+            if (item is MeleeWeapon weapon && !weapon.isScythe())
+            {
+                return weapon.GetData() is null
+                    ? ModConstants.EMPTY_CATEGORY_ID
+                    : GetWeaponTypeLabel(weapon.type.Value);
+            }
+
+            string categoryName = StardewValley.Object.GetCategoryDisplayName(item.Category);
+            return string.IsNullOrWhiteSpace(categoryName)
+                ? item.Category.ToString()
+                : categoryName;
+        }
+
         // Mirrors the exact switch MeleeWeapon.getCategoryName() uses internally, only the weapon family is wanted
         // for the bucket name, using localised names means no need to translate
         private static string GetWeaponTypeLabel(int type)
