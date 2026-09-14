@@ -28,6 +28,35 @@ namespace AutoSorterBuilding.Patches
         private static readonly Dictionary<string, Item?> FilterSampleCache = new(StringComparer.Ordinal);
         private const uint FilterCycleIntervalTicks = 120;
 
+        // Pixel offsets for the cycling OR-filter sample icon, relative to the sign's tile origin
+        private const int FilterSampleOffsetX = 0;
+
+        // (x*64, y*64).
+        private const int FilterSampleOffsetY = -42;
+        private const float FilterSampleScale = 0.75f;
+
+        // Pixel offset for the "+N" additional-filter-count badge as a whole, relative to the
+        // sign's tile origin (x*64, y*64).
+        private const int FilterCountBadgeOffsetX = 8;
+        private const int FilterCountBadgeOffsetY = -35;
+        private const float FilterCountBadgePlusScale = 0.5f;
+        private const float FilterCountBadgeNumberScale = 1f;
+        private const float FilterCountBadgeNumberOffsetY = -10f;
+
+        // Bundles the state a DrawPrefix needs to hand off to DrawPostfix for a given Sign.draw()
+        // call.
+         private sealed class DrawSwapState
+        {
+            public Item OriginalItem { get; }
+            public Item SampleItem { get; }
+
+            public DrawSwapState(Item originalItem, Item sampleItem)
+            {
+                OriginalItem = originalItem;
+                SampleItem = sampleItem;
+            }
+        }
+
         public static void Register(Harmony harmony, IModHelper helper)
         {
             harmony.Patch(
@@ -38,6 +67,7 @@ namespace AutoSorterBuilding.Patches
             harmony.Patch(
                 original: AccessTools.Method(typeof(Sign), nameof(Sign.draw),
                     new[] { typeof(SpriteBatch), typeof(int), typeof(int), typeof(float) }),
+                prefix: new HarmonyMethod(typeof(SignSelectorPatch), nameof(DrawPrefix)),
                 postfix: new HarmonyMethod(typeof(SignSelectorPatch), nameof(DrawPostfix))
             );
 
@@ -134,16 +164,69 @@ namespace AutoSorterBuilding.Patches
             return leftKeys.SetEquals(right.Select(category => category.Key));
         }
 
-        private static void DrawPostfix(Sign __instance, SpriteBatch spriteBatch, int x, int y, float alpha)
+        // Decides, once per Sign.draw() call, whether this frame should show a cycled OR-filter
+        // sample instead of the real primary item. If so, the primary item is temporarily hidden
+        // (displayItem.Value = null) so vanilla's own drawing draws nothing for it.
+         private static void DrawPrefix(Sign __instance, out DrawSwapState? __state)
+        {
+            __state = null;
+
+            int additionalCount = SignFilterStorage.GetAdditionalClauseCount(__instance);
+            if (additionalCount <= 0)
+            {
+                return;
+            }
+
+            Item? primaryItem = __instance.displayItem.Value;
+            if (primaryItem is null)
+            {
+                return;
+            }
+
+            // Index zero is the primary item itself, let vanilla draw it normally.
+            int cycleIndex = (int)((Game1.ticks / FilterCycleIntervalTicks) % (uint)(additionalCount + 1));
+            if (cycleIndex == 0)
+            {
+                return;
+            }
+
+            string? sampleItemId = SignFilterStorage.GetAdditionalSampleItemId(__instance, cycleIndex - 1);
+            if (sampleItemId is null)
+            {
+                return;
+            }
+
+            Item? sampleItem = GetCachedSampleItem(sampleItemId);
+            if (sampleItem is null)
+            {
+                return;
+            }
+
+            __instance.displayItem.Value = null;
+            __state = new DrawSwapState(primaryItem, sampleItem);
+        }
+
+        private static void DrawPostfix(
+            Sign __instance,
+            SpriteBatch spriteBatch,
+            int x,
+            int y,
+            float alpha,
+            DrawSwapState? __state)
         {
             float layerDepth = Math.Max(0f, (float)((y + 1) * 64 - 24) / 10000f) +
                 (float)x * 1E-05f + 3E-05f;
 
-            int additionalCount = SignFilterStorage.GetAdditionalClauseCount(__instance);
-            if (additionalCount > 0)
+            if (__state is not null)
             {
-                DrawCyclingFilterSample(__instance, spriteBatch, x, y, alpha, layerDepth, additionalCount);
+                // Vanilla has now run (and drew nothing, since we hid the primary item above).
+                // Restore the real item so save data / other mods see it as normal, then draw the
+                // sample in its place,a swap, not an overlay.
+                __instance.displayItem.Value = __state.OriginalItem;
+                DrawFilterSample(__state.SampleItem, spriteBatch, x, y, alpha, layerDepth);
             }
+
+            int additionalCount = SignFilterStorage.GetAdditionalClauseCount(__instance);
 
             if (__instance.modData.TryGetValue(ModConstants.SELECTOR_SLOT_MODDATA_KEY, out string? selectorId) &&
                 SelectorItems.TryGetTypeLabel(selectorId, out string? typeLabel))
@@ -172,84 +255,88 @@ namespace AutoSorterBuilding.Patches
 
             if (additionalCount > 0)
             {
-                const float textScale = 0.65f;
-                string text = $"+{additionalCount}";
-                Vector2 textPosition = Game1.GlobalToLocal(Game1.viewport, new Vector2(x * 64 + 4, y * 64 - 53));
-                spriteBatch.DrawString(
-                    Game1.smallFont,
-                    text,
-                    textPosition + new Vector2(2f, 2f),
-                    Color.Black * alpha,
-                    0f,
-                    Vector2.Zero,
-                    textScale,
-                    SpriteEffects.None,
-                    layerDepth);
-                spriteBatch.DrawString(
-                    Game1.smallFont,
-                    text,
-                    textPosition,
-                    Color.White * alpha,
-                    0f,
-                    Vector2.Zero,
-                    textScale,
-                    SpriteEffects.None,
-                    layerDepth + 0.00001f);
+                Vector2 badgePosition = Game1.GlobalToLocal(Game1.viewport, new Vector2(
+                    x * 64 + FilterCountBadgeOffsetX,
+                    y * 64 + FilterCountBadgeOffsetY));
+                DrawFilterCountBadge(spriteBatch, additionalCount, badgePosition, alpha, layerDepth);
             }
         }
 
-        private static void DrawCyclingFilterSample(
-            Sign sign,
+        // Draws "+" and the count as two independently-scaled strings that still move together as
+        // one badge: the number starts right after however wide the "+" ends up at its own scale.
+        private static void DrawFilterCountBadge(
             SpriteBatch spriteBatch,
-            int x,
-            int y,
+            int additionalCount,
+            Vector2 badgePosition,
             float alpha,
-            float layerDepth,
-            int additionalCount)
+            float layerDepth)
         {
-            // Index zero leaves the primary item drawn by the game visible. Later indices overlay
-            // one Shift-added sample for two seconds each before returning to the primary item.
-            int cycleIndex = (int)((Game1.ticks / FilterCycleIntervalTicks) % (uint)(additionalCount + 1));
-            if (cycleIndex == 0)
-            {
-                return;
-            }
+            const string plusText = "+";
+            string numberText = additionalCount.ToString();
 
-            string? sampleItemId = SignFilterStorage.GetAdditionalSampleItemId(sign, cycleIndex - 1);
-            if (sampleItemId is null)
-            {
-                return;
-            }
+            float plusWidth = Game1.tinyFont.MeasureString(plusText).X * FilterCountBadgePlusScale;
+            Vector2 numberPosition = badgePosition + new Vector2(plusWidth, FilterCountBadgeNumberOffsetY);
 
+            DrawOutlinedString(spriteBatch, plusText, badgePosition, FilterCountBadgePlusScale, alpha, layerDepth);
+            DrawOutlinedString(spriteBatch, numberText, numberPosition, FilterCountBadgeNumberScale, alpha, layerDepth + 0.00001f);
+        }
+
+        private static void DrawOutlinedString(
+            SpriteBatch spriteBatch,
+            string text,
+            Vector2 position,
+            float scale,
+            float alpha,
+            float layerDepth)
+        {
+            spriteBatch.DrawString(
+                Game1.tinyFont,
+                text,
+                position + new Vector2(2f, 2f),
+                Color.Black * alpha,
+                0f,
+                Vector2.Zero,
+                scale,
+                SpriteEffects.None,
+                layerDepth);
+            spriteBatch.DrawString(
+                Game1.tinyFont,
+                text,
+                position,
+                Color.White * alpha,
+                0f,
+                Vector2.Zero,
+                scale,
+                SpriteEffects.None,
+                layerDepth + 0.00001f);
+        }
+
+        private static Item? GetCachedSampleItem(string sampleItemId)
+        {
             if (!FilterSampleCache.TryGetValue(sampleItemId, out Item? sampleItem))
             {
                 sampleItem = ItemRegistry.Create(sampleItemId, allowNull: true);
                 FilterSampleCache[sampleItemId] = sampleItem;
             }
+            return sampleItem;
+        }
 
-            if (sampleItem is null)
-            {
-                return;
-            }
+        private static void DrawFilterSample(
+            Item sampleItem,
+            SpriteBatch spriteBatch,
+            int x,
+            int y,
+            float alpha,
+            float layerDepth)
+        {
+            Vector2 itemPosition = Game1.GlobalToLocal(Game1.viewport, new Vector2(
+                x * 64 + FilterSampleOffsetX,
+                y * 64 + FilterSampleOffsetY));
 
-            Vector2 itemPosition = Game1.GlobalToLocal(
-                Game1.viewport,
-                new Vector2(x * 64 + 8, y * 64 - 56));
-
-            // The backing plate hides the primary icon beneath transparent parts of the cycling icon.
-            spriteBatch.Draw(
-                Game1.staminaRect,
-                new Rectangle((int)itemPosition.X, (int)itemPosition.Y, 48, 48),
-                null,
-                Color.Black * 0.72f * alpha,
-                0f,
-                Vector2.Zero,
-                SpriteEffects.None,
-                layerDepth);
             sampleItem.drawInMenu(
                 spriteBatch,
                 itemPosition,
-                0.75f,
+                FilterSampleScale,
                 alpha,
                 layerDepth + 0.000002f,
                 StackDrawType.Hide,
